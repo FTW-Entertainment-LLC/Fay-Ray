@@ -1,0 +1,20 @@
+[
+    {
+        "title": "Military!",
+        "prefix": "military",
+        "regex": "\\[Commie\\] Military! - (\\d{2}) \\[.*\\].mkv",
+        "nyaasearch": "Military%21",
+        "nyaauser": 76430,
+        "uploadsID": 0,
+        "episode": 12
+    },
+    {
+        "title": "Shimoneta: A Boring World Where the Concept of Dirty Jokes Doesn`t Exist",
+        "prefix": "shimonetaaboringworldwheretheconceptofdirtyjokesdoesntexist",
+        "regex": "\\[Hiryuu\\] Shimoneta to Iu Gainen ga Sonzai Shinai Taikutsu na Sekai - (\\d{2}) \\[720p H264 AAC\\].*.mkv",
+        "nyaasearch": "Shimoneta+to+Iu+Gainen+ga+Sonzai+Shinai+Taikutsu+na+Sekai",
+        "nyaauser": 89764,
+        "uploadsID": 1,
+        "episode": 4
+    }
+]
