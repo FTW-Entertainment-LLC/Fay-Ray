@@ -6,15 +6,98 @@
         "nyaasearch": "Military%21",
         "nyaauser": 76430,
         "uploadsID": 0,
-        "episode": 12
+        "quality": 720,
+        "finished_episodes": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+        ]
     },
     {
         "title": "Shimoneta: A Boring World Where the Concept of Dirty Jokes Doesn`t Exist",
-        "prefix": "shimonetaaboringworldwheretheconceptofdirtyjokesdoesntexist",
+        "prefix": "shimonetaaboringworldwheretheconcept",
         "regex": "\\[Hiryuu\\] Shimoneta to Iu Gainen ga Sonzai Shinai Taikutsu na Sekai - (\\d{2}) \\[720p H264 AAC\\].*.mkv",
         "nyaasearch": "Shimoneta+to+Iu+Gainen+ga+Sonzai+Shinai+Taikutsu+na+Sekai",
         "nyaauser": 89764,
         "uploadsID": 1,
-        "episode": 4
+        "quality": 720,
+        "finished_episodes": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+        ]
+    },
+    {
+        "title": "Gakkou Gurashi!",
+        "prefix": "gakkougurashi",
+        "regex": "\\[DameDesuYo\\] Gakkou Gurashi! - (\\d{2}) \\(1280x720 10bit AAC\\) \\[.*\\].mkv",
+        "nyaasearch": "Gakkou+Gurashi%21",
+        "nyaauser": 227008,
+        "uploadsID": 2,
+        "quality": 480,
+        "finished_episodes": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+        ]
+    },
+    {
+        "title": "Owarimonogatari",
+        "prefix": "owarimonogatari",
+        "regex": "\\[Commie\\] Owarimonogatari - (\\d{2}) \\[.*\\].mkv",
+        "nyaasearch": "owarimonogatari",
+        "nyaauser": 76430,
+        "uploadsID": 3,
+        "quality": 720,
+        "finished_episodes": [
+            9,
+            9,
+            2,
+            1,
+            3,
+            2,
+            1,
+            3,
+            4,
+            5,
+            4,
+            5,
+            6,
+            6,
+            7,
+            7,
+            8,
+            8,
+            10,
+            10,
+            11,
+            11,
+            12,
+            12
+        ]
     }
 ]
