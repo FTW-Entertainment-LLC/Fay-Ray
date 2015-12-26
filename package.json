@@ -1,0 +1,17 @@
+{
+  "name": "bot-san",
+  "version": "0.0.1",
+  "description": "bot-san",
+  "main": "app.js",
+  "author": {
+    "name": "Hani",
+    "email": "enic@animeftw.tv"
+  },
+  "dependencies": {
+    "async": "^1.5.0",
+    "colors": "^1.1.2",
+    "feed-read": "0.0.1",
+    "ftp": "^0.3.10",
+    "webtorrent": "^0.63.4"
+  }
+}

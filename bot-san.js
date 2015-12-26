@@ -1,10 +1,10 @@
 ﻿var feed = require("feed-read");
-var sleep = require("sleep");
-var request = require('request');
+//var request = require('request');
 var async = require('async');
 var WebTorrent = require('webtorrent');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
+var exec = require('child_process').exec;
 var path = require('path');
 var colors = require('colors');
 var events = require("events");
@@ -24,8 +24,17 @@ var tclient = new WebTorrent();
  * 
  * 
  * */
-var CClocation = path.normalize("C:/Users/Hani/Downloads/cc2");
+var CClocation = path.normalize("C:/Users/Hani/Downloads/cc2/CancerCoder.exe");
+if (os.platform() == "linux") {
+    CClocation = path.normalize("/home/hani/Downloads/CancerCoder-Unix/CancerCoder.exe");   
+}
+
+var MonoLocation = path.normalize("/opt/mono/bin/mono");
+
 var outputfolder = path.normalize("C:/Users/Hani/Documents/visual studio 2015/Projects/bot-san/bot-san/encoded");
+if (os.platform() == "linux") {
+    outputfolder = path.normalize("/home/hani/Downloads/bot-san/encoded");
+}
 var SIMULTANEOUS_FTP_UPLOADS = 4;
 var MAX_SIMULTANEOUS_DOWNLOADS = 10;
 var SIMULTANEOUS_NYAA_CHECKS = 4;
@@ -225,14 +234,14 @@ function onTorrentAdd(torrent, Episode, callback) {
             }
         });*/
         callback();
-    })
+    });
 
     
 }
 
 function onDoneDownloading(file, Episode) {
     updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
-    fs.readdir(path.normalize(".\\torrents\\"), function (err, files) {
+    fs.readdir(path.normalize("./torrents/"), function (err, files) {
         if (err) {
             logError(err);
             throw (err);
@@ -256,31 +265,41 @@ function onDoneDownloading(file, Episode) {
 function startEncoding(encodeObj, callback) {
     //destination, Episode, index
     //Gets the full path
+
+    var folderpath = path.normalize(path.resolve("./torrents"));
     
-    var folderpath = path.normalize(path.dirname(path.resolve("./torrents/" + encodeObj.file.name)));
     
+
     updateData({ Episode: encodeObj.Episode, Status: "Encoding", Progress: 0 });
     
     
-    //Spawn CC through cmd, this will be different on unix.
-    
-    
+    //Write the time
+    appendToCC(getTime() + ":\r\n");
+    //Spawn CC through cmd
     var ls = "";
     if (os.platform() == "win32") {
-        ls = spawn("cmd", ["/c", "start", "/min", path.normalize(CClocation + "/CancerCoder"), "SourceFolder:" + folderpath, "OutputFolder:" + path.normalize(outputfolder), "TempFolder:C:\\tempfolder", "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
+        ls = spawn("cmd", ["/c", "start", "/min", path.normalize(CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + path.normalize(outputfolder), "TempFolder:C:\\tempfolder", "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
         //ls = spawn("cmd", ["/c"], { detached: true }); //Skip encode
     }
+    //Spawn CC through shell
     else if (os.platform() == "linux") {
-        //Todo
+        
+        var line = MonoLocation + " " + CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + path.normalize(outputfolder) + " TempFolder:/home/temp Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:/bin/bin/ffmpeg mencoder:/usr/local/bin/mencoder mkvextract:/usr/bin/mkvextract mkvmerge:/usr/bin/mkvmerge debug:true";
+        //Write the line in the cc file.
+        appendToCC(line);
+        ls = spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
     }
-    
+
     ls.stdout.on('data', function (data) {
-        //console.log('stdout: ' + data);
-        process.exit(1);
+        if (DEBUG) {
+            console.log('stdout: ' + data);
+        }
+        appendToCC(data);
     });
     
     ls.stderr.on('data', function (data) {
         console.log('stderr: ' + data);
+        appendToCC(data);
     });
     ls.on('error', function (err) {
         if (err) {
@@ -296,6 +315,7 @@ function startEncoding(encodeObj, callback) {
                 console.log(err);
                 throw err;
             }
+            appendToCC("\r\n\r\n");
             callback();
         });
     });
@@ -321,7 +341,6 @@ process.on('SIGINT', function () {
 })
 function onCCClose(code, Episode, callback) {
     //console.log('child process exited with code ' + code);
-    
     
     if (code == 0) {
         //Check if outputted file(s) exists!
@@ -525,7 +544,7 @@ function writeData() {
         process.stdout.write("\u001b[2J\u001b[0;0H");
     }
     else if (os.platform() == "linux") {
-        process.stdout.write('\033[2J');
+        process.stdout.write('\033[2J\033[1;1H');
     }
     
     application_status.forEach(function (i) {
@@ -568,9 +587,22 @@ function logError(err) {
         message += 'dumpError :: argument is not an object\r\n';
     }
     
+    //Todo:
+    //Check size of error log,
+    //If it's larger than a certain size,
+    //Create a new one.
+
     fs.appendFile('./error.txt', getTime() + ":" + message + "\r\n\r\n", function (err) {
         if (err) throw err;
         
         console.log('The "', err, '" was appended to file!');
+    });
+}
+
+function appendToCC(str){
+    //Todo:
+    //Same as above 
+    fs.appendFile('./cc.txt', str, function (err) {
+        if (err) throw err;
     });
 }
