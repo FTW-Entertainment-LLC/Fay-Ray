@@ -28,7 +28,6 @@ var application_status = [];
 var config;
 if (fs.existsSync(path.normalize("./config.ini"))) {
   config = ini.parse(fs.readFileSync('./config.ini', 'utf-8'));
-  updateAppData({ message: config.paths.CClocation, id: 10101931 });
 }else{
   console.error("No config.ini file found!");
 }
