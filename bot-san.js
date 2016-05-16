@@ -290,13 +290,13 @@ function startEncoding(encodeObj, callback) {
   //Spawn CC through cmd
   var ls = "";
   if (os.platform() == "win32") {
-    ls = spawn("cmd", ["/c", "start", "/min", path.normalize(config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + path.normalize(outputfolder), "TempFolder:C:\\tempfolder", "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
-    //ls = spawn("cmd", ["/c"], { detached: true }); //Skip encode
+    //ls = spawn("cmd", ["/c", "start", "/min", path.normalize(config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + path.normalize(config.paths.outputfolder), "TempFolder:"+config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
+    ls = spawn("cmd", ["/c"], { detached: true }); //Skip encode
   }
   //Spawn CC through shell
   else if (os.platform() == "linux") {
 
-    var line = config.paths.MonoLocation + " " + config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + path.normalize(outputfolder) + " TempFolder:/home/temp Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+config.paths.ffmpeg+" mencoder:"+config.paths.mencoder+" mkvextract:"+config.paths.mkvextract+" mkvmerge:"+config.paths.mkvmerge+" debug:true";
+    var line = config.paths.MonoLocation + " " + config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + path.normalize(config.paths.outputfolder) + " TempFolder:"+config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+config.paths.ffmpeg+" mencoder:"+config.paths.mencoder+" mkvextract:"+config.paths.mkvextract+" mkvmerge:"+config.paths.mkvmerge+" debug:true";
     //Write the line in the cc file.
     appendToCC(line);
     ls = spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
@@ -353,21 +353,24 @@ process.on('SIGINT', function () {
 })
 function onCCClose(code, Episode, callback) {
   //console.log('child process exited with code ' + code);
-
+  
+  //Todo: Check each file individually. As soon as 480p is encoded, start uploading it. When 720p is done, upload it immediatly etc.
   if (code == 0) {
     //Check if outputted file(s) exists!
     updateData({ Episode: Episode, Status: "Encode finished", Progress: 0 });
     var filepaths = [];
-    filepaths.push(path.resolve(config.paths.outputfolder + Episode.parent.prefix + "_" + Episode.episodeno + "_ns.mp4"));
+    filepaths.push({path: path.resolve(config.paths.outputfolder + Episode.parent.prefix + "_" + Episode.episodeno + "_ns.mp4"), quality: 480});
+
+    //>= to match both 720p and 1080p
     if (Episode.parent.quality >= 720) {
-      filepaths.push(path.resolve(config.paths.outputfolder + Episode.parent.prefix + "_720p_" + Episode.episodeno + "_ns.mp4"));
+      filepaths.push({path: path.resolve(config.paths.outputfolder + Episode.parent.prefix + "_720p_" + Episode.episodeno + "_ns.mp4"), quality: 720});
     }
     if (Episode.parent.quality == 1080) {
-      filepaths.push(path.resolve(config.paths.outputfolder + Episode.parent.prefix + "_1080p_" + Episode.episodeno + "_ns.mp4"));
+      filepaths.push({path: path.resolve(config.paths.outputfolder + Episode.parent.prefix + "_1080p_" + Episode.episodeno + "_ns.mp4"), quality: 1080});
     }
 
     filepaths.forEach(function (i) {
-      fs.exists(i, function (exists) { sendToFTP(exists, i, Episode); });
+      fs.exists(i.path, function (exists) { sendToFTP(exists, i, Episode); });
     });
     callback();
 
@@ -389,7 +392,7 @@ function sendToFTP(exists, filepath, Episode) {
       in_ftp_queue.splice(in_ftp_queue.indexOf(Episode.torrenturl), 1);
     });
   } else {
-    updateData({ Episode: Episode, Status: "Encode failed: " + filepath + " doesn't exist", Progress: 0 });
+    updateData({ Episode: Episode, Status: "Encode failed: " + filepath.path + " doesn't exist", Progress: 0 });
   }
 
 
@@ -410,10 +413,15 @@ function sendToFTP(exists, filepath, Episode) {
  */
 
 
+
+
 function nyaaUrl(search, user) {
   return "https://www.nyaa.eu/?page=rss&term=" + search + "&user=" + user
 }
 
+/*
+uplObj: { filepath: {path, quality}, Episode: Episode }
+*/
 function upload_file(uplObj, callback) {
 
   var FTPc = new FClient();
@@ -471,31 +479,36 @@ function upload_file(uplObj, callback) {
       throw err;
     }
 
-    //Check series quality, and if all of them are uploaded, then do this operation: 
-
-    updateAppData({ message: uploadObj, id: 10101930 });
-    uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
-
+    //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded
+    if(uplObj.filepath.quality == uplObj.Episode.parent.quality){
+      uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
+    }
     saveSettings();
     callback();
   });
 
 
 }
-
+/*
+uplObj: { filepath: {path, quality}, Episode: Episode }
+*/
 function uploadOp(uplObj, FTPc) {
   FTPc.cwd(uplObj.Episode.parent.prefix, function (err) {
     if (err) {
       logError(err);
       console.log(err);
     }
-    var parsed_path = path.parse(uplObj.filepath);
-    FTPc.put(uplObj.filepath, parsed_path.base, function (err) {
+    var parsed_path = path.parse(uplObj.filepath.path);
+    FTPc.put(uplObj.filepath.path, parsed_path.base, function (err) {
       if (err) {
         logError(err);
         console.log(err);
       }
-      updateData({ Episode: uplObj.Episode, Status: "Upload Finished", Progress: 0 });
+      //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded
+      if(uplObj.filepath.quality == uplObj.Episode.parent.quality){
+        updateData({ Episode: uplObj.Episode, Status: "Upload Finished", Progress: 0 });
+      }
+
       FTPc.end();
     });
   });
