@@ -295,7 +295,7 @@ function startEncoding(encodeObj, callback) {
   //Spawn CC through shell
   else if (os.platform() == "linux") {
 
-    var line = config.paths.MonoLocation + " " + config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + path.normalize(outputfolder) + " TempFolder:/home/temp Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:/bin/bin/ffmpeg mencoder:/usr/local/bin/mencoder mkvextract:/usr/bin/mkvextract mkvmerge:/usr/bin/mkvmerge debug:true";
+    var line = config.paths.MonoLocation + " " + config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + path.normalize(outputfolder) + " TempFolder:/home/temp Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+config.paths.ffmpeg+" mencoder:"+config.paths.mencoder+" mkvextract:"+config.paths.mkvextract+" mkvmerge:"+config.paths.mkvmerge+" debug:true";
     //Write the line in the cc file.
     appendToCC(line);
     ls = spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
