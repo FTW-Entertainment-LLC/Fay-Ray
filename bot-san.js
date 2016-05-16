@@ -55,7 +55,7 @@ var DEBUG = false;
 
 var ftp_queue = async.queue(upload_file, config.settings.SIMULTANEOUS_FTP_UPLOADS);
 var in_ftp_queue = []; //Contains the torrenturl of each episode in the list.
-//Iterating through the original queues to find episodes didn't work out as well as I'd loved, so I made this as a quickfix.
+//Iterating through the original queues to find episodes didn't work out as well as I'd liked, so I made this as a quickfix.
 //I might try to remove these arrays and use the original queues in the future, but to save me headaches now I'm doing it this way.
 var nyaa_queue = async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
 
@@ -130,6 +130,7 @@ function startQueue() {
   nyaa_queue.push(anime_list);
 }
 
+//This functions adds a 0 infront of the episode number if it's just 1 digit, because most epsiodes on torrents are signed as 01, 02 etc
 var getEpisode = function (ep) {
   if (ep < 10 && ep > 0) {
     return "0" + ep;
