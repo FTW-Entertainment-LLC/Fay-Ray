@@ -100,7 +100,7 @@ Botsan.prototype.writeData = function writeData() {
     if (this.os.platform() == "win32") {
         process.stdout.write("\u001b[2J\u001b[0;0H");
     }
-    else if (os.platform() == "linux") {
+    else if (this.os.platform() == "linux") {
         process.stdout.write('\033[2J\033[1;1H');
     }
 
