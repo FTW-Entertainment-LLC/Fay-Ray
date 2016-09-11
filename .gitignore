@@ -33,3 +33,5 @@ torrents
 cc.txt
 *.ftpsync_settings
 error.txt
+ray_savefile.json
+downloaded.json

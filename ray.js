@@ -33,7 +33,7 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
 }
 
 var nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
-var torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.MAX_SIMULTANEOUS_DOWNLOADS);
+var torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.SIMULTANEOUS_DOWNLOADS);
 var in_torrent_queue = [];
 var current_downloaded_articles = [];
 
@@ -44,7 +44,7 @@ var minutes = 30, the_interval = minutes * 60 * 1000;
 setInterval(startQueue, the_interval);
 
 
-function checkNyaa(series) {
+function checkNyaa(series, callback) {
     var nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
     botsan.feed(nyaaurl, function (err, articles) {
 
@@ -98,7 +98,8 @@ function checkNyaa(series) {
         } else {
             botsan.updateAppData({ message: "Ray: I found no artciles for: " + series.title, id: series.uploadsID });
         }
-
+        callback();
+        
     });
 }
 
@@ -112,16 +113,18 @@ function nyaaUrl(search, user) {
 }
 
 
-function downloadEpisodes(Episode) {
+function downloadEpisodes(Episode, callback) {
     //Don't add the torrent if it's already in the client.
     if (!botsan.tclient.get(Episode.torrenturl)) {
         botsan.tclient.add(Episode.torrenturl, { path: botsan.path.resolve(config.paths.torrentfolder) }, function (torrent) {
-            onTorrentAdd(torrent, Episode);
+            onTorrentAdd(torrent, Episode, callback);
         });
+    } else{
+        callback();
     }
 }
 
-function onTorrentAdd(torrent, Episode) {
+function onTorrentAdd(torrent, Episode, callback) {
     botsan.updateData({ Episode: Episode, Status: "Starting Download", Progress: Math.floor(torrent.progress * 100) });
     //Go through all the files in the torrent and download the one one I need
     /*torrent.files.forEach(function ontorrent(file) {
@@ -133,6 +136,7 @@ function onTorrentAdd(torrent, Episode) {
     torrent.on('error', function(){
         console.log(err);
         logError(err);
+        callback();
     });
 
     torrent.on('download', function () {
@@ -149,7 +153,7 @@ function onTorrentAdd(torrent, Episode) {
         finished = true;
         torrent.files.forEach(function (file) {
             //Todo: Add only video files
-            onDoneDownloading(file, Episode);
+            onDoneDownloading(file, Episode, callback);
         });
 
         //Todo:
@@ -165,11 +169,12 @@ function onTorrentAdd(torrent, Episode) {
 
 }
 
-function onDoneDownloading(file, Episode) {
+function onDoneDownloading(file, Episode, callback) {
     botsan.updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
     botsan.fs.readdir(botsan.path.normalize(config.paths.torrentfolder), function (err, files) {
         if (err) {
             logError(err);
+            callback();
             throw (err);
         }
         var index = 0;
@@ -177,10 +182,6 @@ function onDoneDownloading(file, Episode) {
          * get the index for it, and send it off to the encode queue */
         for (index; index < files.length; index++) {
             if (files[index] == file.name) {
-                /*in_encode_queue.push(Episode.torrenturl);
-        encode_queue.push({ file: file, Episode: Episode, index: index }, Episode.episodeno, function () {
-          in_encode_queue.splice(in_encode_queue.indexOf(Episode.torrenturl), 1);
-        });*/
                 var downloadedObj = new botsan.downloaded(Episode.parent.uploadsID, file.name, Episode.episodeno);
                 current_downloaded_articles.push(Episode.torrenturl);
                 Episode.parent.finished_episodes.push(Episode.episodeno);
@@ -189,7 +190,7 @@ function onDoneDownloading(file, Episode) {
                 //numeric sort
                 
                 downloaded_list.push(downloadedObj);
-                writeDownloads();
+                writeDownloads(callback);
                 botsan.saveSettings(anime_list);
                 botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
                 break;
@@ -199,13 +200,14 @@ function onDoneDownloading(file, Episode) {
     });
 }
 
-function writeDownloads(){
+function writeDownloads(callback){
     var outputFilename = botsan.path.normalize('./downloaded.json');
     botsan.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
         if (err) {
             botsan.logError(err);
             console.log(err);
         }
+        callback();
     });
 
 }
