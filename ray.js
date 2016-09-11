@@ -35,7 +35,7 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
 var nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
 var torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.MAX_SIMULTANEOUS_DOWNLOADS);
 var in_torrent_queue = [];
-var downloaded = [];
+var current_downloaded_articles = [];
 
 
 //Starts the queue on start, and then once every hour.
@@ -59,7 +59,7 @@ function checkNyaa(series) {
             articles.forEach(function (article) {
                 var pattern = new RegExp(series.regex);
                 if (!new RegExp(pattern).test(article.title)) {
-                    updateAppData({ message: "Bot-san: Regex pattern is invalid for: " + series.title, id: series.uploadsID });
+                    botsan.updateAppData({ message: "Bot-san: Regex pattern is invalid for: " + series.title, id: series.uploadsID });
                 }
                 var result = article.title.match(pattern);
 
@@ -72,8 +72,9 @@ function checkNyaa(series) {
                     return;
                 }
 
-                if (in_torrent_queue.indexOf(article.link) >= 0 || downloaded.indexOf(article.link) >= 0) {
+                if (in_torrent_queue.indexOf(article.link) >= 0 || current_downloaded_articles.indexOf(article.link) >= 0) {
                     //Don't continue if the episode is in any of the above lists.
+                    //In torrent queue are the torrents waiting to be downloaded, while current_downloaded_articles are all torrents that has been downloaded since the process started
                     return;
                 }
 
@@ -181,8 +182,15 @@ function onDoneDownloading(file, Episode) {
           in_encode_queue.splice(in_encode_queue.indexOf(Episode.torrenturl), 1);
         });*/
                 var downloadedObj = new botsan.downloaded(Episode.parent.uploadsID, file.name, Episode.episodeno);
+                current_downloaded_articles.push(Episode.torrenturl);
+                Episode.parent.finished_episodes.push(Episode.episodeno);
+                
+                Episode.parent.finished_episodes.sort(function(a, b){return a - b});
+                //numeric sort
+                
                 downloaded_list.push(downloadedObj);
                 writeDownloads();
+                botsan.saveSettings(anime_list);
                 botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
                 break;
             }

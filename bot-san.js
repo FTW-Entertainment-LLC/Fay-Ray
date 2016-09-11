@@ -39,7 +39,7 @@ Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaaus
     this.finished_episodes = []; //Change episode to use a list, to keep track which episodes are done.
 };
 
-Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno) {
+Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno, torrenturl) {
     this.uploadsID = uploadsID; //Uploads board ID, all series are identified by this number.
     //For more info this can be matched from the anime object.
     this.filename = filename; //Filename
@@ -147,6 +147,18 @@ Botsan.prototype.logError = function logError(err) {
         if (err) throw err;
 
         console.log('The "', err, '" was appended to file!');
+    });
+}
+
+Botsan.prototype.saveSettings = function saveSettings(anime_list) {
+    var outputFilename = this.path.normalize('./savefile.json');
+
+    this.fs.writeFile(outputFilename, JSON.stringify(anime_list, null, 4), function (err) {
+        if (err) {
+            logError(err);
+            console.log(err);
+        } else {
+        }
     });
 }
 
