@@ -31,3 +31,5 @@ node_modules
 encoded
 torrents
 cc.txt
+*.ftpsync_settings
+error.txt
