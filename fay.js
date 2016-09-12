@@ -101,6 +101,7 @@ function checkDownloads(){
 function processDownloads(){
     var downloads = require('./rays_data/downloaded.json');
     downloads.forEach(function (download) {
+        if(in_download_queue.indexOf(download.filename) >= 0 || botsan.getDownloadFromFile(download.filename, './downloaded.json')){
             return;
         }
         //Todo: Check own downloaded.json file to not download anything downloaded again.
