@@ -1,7 +1,7 @@
 var bsan = require('./bot-san.js');
 var botsan = new bsan();
-botsan.startConsole();
-
+//botsan.startConsole();
+botsan.writeData();
 
 
 var config;
@@ -190,7 +190,7 @@ function onDoneDownloading(file, Episode, callback) {
                 //numeric sort
                 
                 downloaded_list.push(downloadedObj);
-                writeDownloads(callback);
+                botsan.writeDownloads(downloaded_list, callback);
                 botsan.saveSettings(anime_list);
                 botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
                 break;
@@ -198,16 +198,4 @@ function onDoneDownloading(file, Episode, callback) {
 
         }
     });
-}
-
-function writeDownloads(callback){
-    var outputFilename = botsan.path.normalize('./downloaded.json');
-    botsan.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
-        if (err) {
-            botsan.logError(err);
-            console.log(err);
-        }
-        callback();
-    });
-
 }

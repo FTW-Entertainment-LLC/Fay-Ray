@@ -1,7 +1,8 @@
 var bsan = require('./bot-san.js');
 var Client  = require('scp2').Client;
 var botsan = new bsan();
-botsan.startConsole();
+botsan.writeData();
+//botsan.startConsole();
 
 
 
@@ -19,31 +20,43 @@ config.paths.downloads = botsan.path.normalize(config.paths.downloads)
 if (!botsan.fs.existsSync(config.paths.downloads)) {
     botsan.fs.mkdirSync(config.paths.downloads);
 }
+if (!botsan.fs.existsSync('./rays_data')) {
+    botsan.fs.mkdirSync('./rays_data');
+}
 
 if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
     anime_list = require('./savefile.json');
 }
 
+if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
+    try {
+        downloaded_list = JSON.parse('./downloaded.json');
+    } catch (e) {
+        downloaded_list = [];
+    }
+
+}else{
+    downloaded_list = [];
+}
+
 //Downloads are in a priority queue, with episode number as a priority. Downloads with lower 
 var download_queue = botsan.async.priorityQueue(scpDownload, config.settings.SIMULTANEOUS_SCP);
 var in_download_queue = [];
+download_queue.drain = function() {
+    scpClient.close();
+};
 
 //Encodes are in a priority queue, with episode number as a priority. Encodes with lower 
 /*var encode_queue = botsan.async.priorityQueue(startEncoding, config.settings.SIMULTANEOUS_ENCODES);
 var in_encode_queue = [];*/
 
-var scpClient = new Client({
+var scpDefaults = {
     port: 22,
     host: config.scp.host,
     username: config.scp.username,
     passphrase: config.scp.passphrase,
-    privateKey: botsan.fs.readFileSync(config.scp.privatekey),
-});
-
-scpClient.on('error', function (err) {
-    console.log(err);
-    botsan.logError(err);
-});
+    privateKey: botsan.fs.readFileSync(botsan.path.normalize(config.scp.privatekey)),
+};
 
 
 //Starts the queue on start, and then once every hour.
@@ -57,10 +70,26 @@ function startQueue() {
 
 function checkDownloads(){
     botsan.updateAppData({ message: "Fay: Checking downloads on seedbox... ", id: -1 });
-    scpClient.download(config.paths.seedbox+'/downloaded.json', 'downloaded.json', function(){
+
+    var scpClient = new Client(scpDefaults);
+
+    scpClient.on('error', function (err) {
+        console.log(err);
+        botsan.logError(err);
+    });
+
+    scpClient.on('connect', function () {
+        botsan.updateAppData({ message: "Data scp client status: Connected \r\n", id: -2 });
+    });
+    scpClient.on('close', function () {
+        botsan.updateAppData({ message: "Data scp client status: Disconnected \r\n", id: -2 });
+    });
+
+    scpClient.download(config.paths.seedbox+'/downloaded.json', './rays_data/downloaded.json', function(){
         botsan.updateAppData({ message: "Fay: Got downloads data from Ray", id: -1 });
-        scpClient.download(config.paths.seedbox+'/savefile.json', 'ray_savefile.json', function(){
+        scpClient.download(config.paths.seedbox+'/savefile.json', './rays_data/ray_savefile.json', function(){
             botsan.updateAppData({ message: "Fay: Got downloads and savefile data from Ray", id: -1 });
+            scpClient.close();
             processDownloads();
         });
     });
@@ -70,26 +99,27 @@ function checkDownloads(){
 
 //Processes the downloaded.json file
 function processDownloads(){
-    var downloads = require('./downloaded.json');
-    for (var key in downloads) {
-        var anime = getSavefileDataById(downloads[key].uploadsID);
+    var downloads = require('./rays_data/downloaded.json');
+    downloads.forEach(function (download) {
+            return;
+        }
+        //Todo: Check own downloaded.json file to not download anything downloaded again.
+        var anime = getSavefileDataById(download.uploadsID);
         if(anime){
-            var episode = new botsan.Episode(downloads[key].filename, null, downloads[key].episodeno, anime);
+            var episode = new botsan.Episode(download.filename, null, download.episodeno, anime);
             in_download_queue.push(episode.title);
-            download_queue.push({ download: downloads[key], episode: episode}, episode.episodeno, function () {
+            download_queue.push({ download: download, episode: episode}, episode.episodeno, function () {
                 //Remove it from in_download_queue when done.
                 in_download_queue.splice(in_download_queue.indexOf(episode.title), 1);
-                botsan.updateData({ Episode: episode, Status: "Finished Download", Progress: 0 });
             });
-            botsan.updateData({ Episode: episode, Status: "In downloading queue", Progress: 0 });
-            console.log("Added ep: "+episode.episodeno)
+            botsan.updateData({ Episode: episode, Status: "In download queue", Progress: 0 });
         }
-    }
+    });
 
 }
 
 function getSavefileDataById(id){
-    var data = require('./ray_savefile.json');
+    var data = require('./rays_data/ray_savefile.json');
 
     for (var key in data) {
         if(data[key].uploadsID == id){
@@ -101,6 +131,32 @@ function getSavefileDataById(id){
 }
 
 function scpDownload(object, callback){
-    botsan.updateData({ Episode: object.episode, Status: "Starting download", Progress: 0 });
-    callback();
+    botsan.updateData({ Episode: object.episode, Status: "Starting Download", Progress: 0 });
+
+    var privScpClient = new Client(scpDefaults);
+
+    privScpClient.download(config.paths.seedbox+'/torrents/'+object.download.filename, config.paths.downloads+'/'+object.download.filename, function(){
+        botsan.updateData({ Episode: object.episode, Status: "Download complete", Progress: 0 });
+        var downloadedObj = new botsan.downloaded(object.episode.parent.uploadsID, object.download.filename, object.episode.episodeno);
+        downloaded_list.push(downloadedObj);
+        //Last procedure, send callback in to the write download function.
+        //If this is ever changed, move callback to right place.
+        botsan.writeDownloads(downloaded_list, callback);
+    });
+
+    //TODO: Track progress when scp adds support for it.
+    /*privScpClient.on('transfer', function (bytes, total) {
+        botsan.updateData({ Episode: object.episode, Status: "Downloading", Progress: ((bytes/total) * 100).toFixed(2) })
+    });*/
+
+    privScpClient.on('connect', function () {
+        botsan.updateData({ Episode: object.episode, Status: "Downloading ", Progress: 0 })
+    });
+
+    privScpClient.on('error', function (err) {
+        console.log(err);
+        botsan.logError(err);
+    });
+
+
 }

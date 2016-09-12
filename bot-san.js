@@ -13,13 +13,13 @@ function Botsan() {
     this.os = require('os');
     this.date = new Date();
     this.tclient = new this.WebTorrent();
+
+    //These variables are for the console output only. Handled by the functions UpdateData, UpdateAppData and writeData
     this.application_status = [];
     this.episode_status = [];
+
 }
 
-Botsan.prototype.foo = function foo() {
-    console.log(this.bar);
-};
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
     this.title = title; //The title of the nyaa listing
     this.episodeno = episodeno; // Episode number of the nyaa listing
@@ -50,18 +50,29 @@ Botsan.prototype.updateData = function updateData(Obj) {
     var index = -1;
     var counter;
     Obj.time = new Date().toISOString();
+    var correctEpisode = null;
     this.episode_status.forEach(function (i) {
-        if (i.Episode.torrenturl == Obj.Episode.torrenturl) {
+        if(correctEpisode!=null)
+            return;
+
+        //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
+        //Ray uses the torrenturl, and title is the anime title.
+        if((Obj.torrenturl == null && i.Episode.title == Obj.Episode.title) ||
+           (Obj.torrenturl != null && i.Episode.torrenturl == Obj.Episode.torrenturl)){
             i.Progress = Obj.Progress;
             i.Status = Obj.Status;
             index = counter;
         }
+
         counter++;
     });
 
+
     if (index == -1) {
         this.episode_status.push(Obj);
+        this.episode_status.sort(this.compareEpisodeData);
     }
+    this.writeData();
 }
 
 Botsan.prototype.updateAppData = function updateAppData(Obj) {
@@ -80,7 +91,9 @@ Botsan.prototype.updateAppData = function updateAppData(Obj) {
     if (index == -1) {
 
         this.application_status.push(Obj);
+        this.application_status.sort(this.compareAppData);
     }
+    this.writeData();
 }
 
 Botsan.prototype.getTime = function getTime() {
@@ -105,7 +118,6 @@ Botsan.prototype.writeData = function writeData() {
     }
 
     this.application_status.forEach(function (i) {
-
         console.log("(" + i.time + ")  " + i.message);
     });
     if (this.application_status.length > 0) {
@@ -119,6 +131,22 @@ Botsan.prototype.writeData = function writeData() {
         console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
     });
 
+}
+
+Botsan.prototype.compareAppData = function compareAppData(a,b){
+    if (a.id < b.id)
+        return -1;
+    if (a.id > b.id)
+        return 1;
+    return 0;
+}
+
+Botsan.prototype.compareEpisodeData = function compareEpisodeData(a,b){
+    if (a.Episode.episodeno < b.Episode.episodeno)
+        return -1;
+    if (a.Episode.episodeno > b.Episode.episodeno)
+        return 1;
+    return 0;
 }
 
 Botsan.prototype.logError = function logError(err) {
@@ -160,6 +188,29 @@ Botsan.prototype.saveSettings = function saveSettings(anime_list) {
         } else {
         }
     });
+}
+
+Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback){
+    var outputFilename = this.path.normalize('./downloaded.json');
+    this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
+        if (err) {
+            this.logError(err);
+            console.log(err);
+        }
+        callback();
+    });
+
+}
+
+Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, json){
+    var data = require(json);
+    for (var key in data) {
+        if(data[key].filename == filename){
+            return data[key];
+        }
+    }
+    return null;
+
 }
 
 module.exports = Botsan;
