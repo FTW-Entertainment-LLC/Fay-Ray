@@ -27,14 +27,13 @@ if (!botsan.fs.existsSync('./rays_data')) {
 if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
     anime_list = require('./savefile.json');
 }
-
+var downloaded_list = [];
 if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
     try {
 
         downloaded_list = JSON.parse(botsan.fs.readFileSync('./downloaded.json', 'utf8'));
     } catch (e) {
         botsan.logError(e);
-        downloaded_list = [];
     }
 
 }
@@ -100,7 +99,7 @@ function processRaysDownloads(){
     var downloads = require('./rays_data/downloaded.json');
     downloads.forEach(function (download) {
         if(in_download_queue.indexOf(download.filename) >= 0 ||
-           botsan.getDownloadFromFile(download.filename, './downloaded.json') ||
+           downloaded_list.indexOf(download.filename) >= 0 ||
            in_encode_queue.indexOf(download.filename) >= 0){
             return;
         }
@@ -121,8 +120,7 @@ function processRaysDownloads(){
 
 //Processes the /downloaded.json file, these will be sent to the encoded queue
 function processDownloads(){
-    var downloads = require('./downloaded.json');
-    downloads.forEach(function (download) {
+    downloaded_list.forEach(function (download) {
         if(in_encode_queue.indexOf(download.filename) >= 0){
             return;
         }
@@ -136,7 +134,13 @@ function processDownloads(){
 }
 
 function getSavefileDataById(id){
-    var data = require('./rays_data/ray_savefile.json');
+    var data = null;
+    try {
+        data = JSON.parse(botsan.fs.readFileSync('./rays_data/ray_savefile.json', 'utf8'));
+    } catch (e) {
+        botsan.logError(e);
+        return null;
+    }
 
     for (var key in data) {
         if(data[key].uploadsID == id){

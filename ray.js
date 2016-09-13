@@ -21,15 +21,14 @@ if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
     anime_list = require('./savefile.json');
 }
 
+var downloaded_list = [];
 if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
     try {
-        downloaded_list = JSON.parse('./downloaded.json');
-    } catch (e) {
-        downloaded_list = [];
-    }
 
-}else{
-    downloaded_list = [];
+        downloaded_list = JSON.parse(botsan.fs.readFileSync('./downloaded.json', 'utf8'));
+    } catch (e) {
+        botsan.logError(e);
+    }
 }
 
 var nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
