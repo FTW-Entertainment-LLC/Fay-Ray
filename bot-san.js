@@ -39,11 +39,18 @@ Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaaus
     this.finished_episodes = []; //Change episode to use a list, to keep track which episodes are done.
 };
 
-Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno, torrenturl) {
+Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno) {
     this.uploadsID = uploadsID; //Uploads board ID, all series are identified by this number.
     //For more info this can be matched from the anime object.
     this.filename = filename; //Filename
     this.episodeno = episodeno; //Episode number
+};
+Botsan.prototype.transcode = function transcode(uploadsID, filename, episodeno, quality) {
+    this.uploadsID = uploadsID; //Uploads board ID, all series are identified by this number.
+    //For more info this can be matched from the anime object.
+    this.filename = filename; //Filename
+    this.episodeno = episodeno; //Episode number
+    this.quality = quality; //Quality
 };
 
 Botsan.prototype.updateData = function updateData(Obj) {
@@ -163,7 +170,7 @@ Botsan.prototype.logError = function logError(err) {
             message += err.stack + "\r\n";
         }
     } else {
-        message += 'dumpError :: argument is not an object\r\n';
+        message += err+'dumpError :: argument is not an object\r\n';
     }
 
     //Todo:
@@ -193,6 +200,18 @@ Botsan.prototype.saveSettings = function saveSettings(anime_list) {
 Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback){
     var outputFilename = this.path.normalize('./downloaded.json');
     this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
+        if (err) {
+            this.logError(err);
+            console.log(err);
+        }
+        callback();
+    });
+
+}
+
+Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, callback){
+    var outputFilename = this.path.normalize('./transcodes.json');
+    this.fs.writeFile(outputFilename, JSON.stringify(transcodes_list, null, 4), function (err) {
         if (err) {
             this.logError(err);
             console.log(err);
