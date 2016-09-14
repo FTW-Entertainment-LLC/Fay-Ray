@@ -57,6 +57,9 @@ var scpDefaults = {
 
 //Starts the queue on start, and then once every hour.
 startQueue();
+
+//We start processing the downloaded.json files, they are sent to the encoding queue.
+//They're sent to the onDoneDownloading function, just like the episode does when a scp download is finished
 processDownloads();
 var minutes = 5, the_interval = minutes * 60 * 1000;
 setInterval(startQueue, the_interval);
@@ -99,7 +102,7 @@ function processRaysDownloads(){
     var downloads = [];
     try {
         downloads = JSON.parse(botsan.fs.readFileSync('./rays_data/downloaded.json', 'utf8'));
-        
+
     } catch (e) {
         botsan.logError(e);
     }
@@ -170,12 +173,13 @@ function scpDownload(object, callback){
         //Last procedure, send callback in to the write download function.
         //If this is ever changed, move callback to right place.
         botsan.writeDownloads(downloaded_list, callback);
-        
+
         onDoneDownloading(object.episode);
 
     });
 
     //TODO: Track progress when scp adds support for it.
+    //Or just switch to SFTP, this scp library is really slow..
     /*privScpClient.on('transfer', function (bytes, total) {
         botsan.updateData({ Episode: object.episode, Status: "Downloading", Progress: ((bytes/total) * 100).toFixed(2) })
     });*/
@@ -229,9 +233,10 @@ function startEncoding(encodeObj, callback) {
 
     botsan.updateData({ Episode: encodeObj.Episode, Status: "Transcoding", Progress: 0 });
 
+    //TODO: Check if the files exists in the encoded folder before continuing.
 
     //Write the time
-    appendToCC(botsan.getTime() + ":\r\n");
+    appendToCC(`\r\n${botsan.getTime()}:\r\n`);
     //Spawn CC through cmd
     var ls = "";
     if (botsan.os.platform() == "win32") {
@@ -248,10 +253,48 @@ function startEncoding(encodeObj, callback) {
         appendToCC(line);
         ls = botsan.spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
     }
-    
+
     //Todo: watch the files prefix_(quality_)?episodeno_ns.mp4
     //When found, create the transcoded object, add it to the transcoded array and send it to FTP.
-    
+
+
+    var filepaths = [];
+    filepaths.push({path: botsan.path.resolve(`${config.paths.outputfolder}${encodeObj.Episode.parent.prefix}_${encodeObj.Episode.episodeno}_ns.mp4`), quality: 480});
+
+    //>= to match both 720p and 1080p
+    if (encodeObj.Episode.parent.quality >= 720) {
+        filepaths.push({path: botsan.path.resolve(`${config.paths.outputfolder}${encodeObj.Episode.parent.prefix}_720p_${encodeObj.Episode.episodeno}_ns.mp4`), quality: 720});
+    }
+    if (encodeObj.Episode.parent.quality == 1080) {
+        filepaths.push({path: botsan.path.resolve(`${config.paths.outputfolder}${encodeObj.Episode.parent.prefix}_1080p_${encodeObj.Episode.episodeno}_ns.mp4`), quality: 1080});
+    }
+
+    var status = ["Transcoding"];
+    filepaths.forEach(function (i) {
+
+        botsan.fs.watchFile(i.path, (curr, prev) => {
+            if(curr.size==0){
+                return;
+            }
+            //TODO, add check to not add it again if it's already uploading/uploaded
+            //Any change to the file will trigger this function.
+            //The file shouldn't change, but just in case it happens.
+
+            //Now we can upload the file!
+            status.push(`Uploading ${i.quality}p`);
+            botsan.updateData({ Episode: encodeObj.Episode, Status: status, Progress: 0 });
+
+            /*in_ftp_queue.push(encodeObj.Episode.title);
+            ftp_queue.push({ filepath: i.path, Episode: encodeObj.Episode }, function () {
+                in_ftp_queue.splice(in_ftp_queue.indexOf(encodeObj.Episode.title), 1);
+                console.log(`removed ${encodeObj.Episode.title} from download queue.`);
+                //TODO: Unwatch file.
+            });*/
+        });
+
+    });
+
+
 
     ls.stdout.on('data', function (data) {
         if (DEBUG) {
@@ -273,14 +316,18 @@ function startEncoding(encodeObj, callback) {
 
     //Todo: If the process closes with a different code than 0, stop watching files and output error.
     ls.on('close', function (code) {
-        botsan.updateData({ Episode: encodeObj.Episode, Status: "Transcode finished", Progress: 0 });
+        botsan.updateData({ Episode: encodeObj.Episode, Status: "CancerCoder closed", Progress: 0 });
+        callback();
+        //All encodes done, callback to tell async we're finished and continue with next episode.
     });
 
 }
 
 function appendToCC(str){
     //Todo:
-    //Same as above 
+    //Check size of error log,
+    //If it's larger than a certain size,
+    //Create a new one.
     botsan.fs.appendFile('./cc.txt', str, function (err) {
         if (err) throw err;
     });

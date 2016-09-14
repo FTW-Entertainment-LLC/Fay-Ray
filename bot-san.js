@@ -53,6 +53,18 @@ Botsan.prototype.transcode = function transcode(uploadsID, filename, episodeno, 
     this.quality = quality; //Quality
 };
 
+Botsan.prototype.getDataStatus = function getDataStatus(Obj) {
+    for(i=0; i<this.episode_status.length; i++){
+        //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
+        //Ray uses the torrenturl, and title is the anime title.
+        if((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.Episode.title) ||
+           (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.Episode.torrenturl)){
+            return Obj.Status;
+        }
+    }
+    return null;
+}
+
 Botsan.prototype.updateData = function updateData(Obj) {
     var index = -1;
     var counter;
@@ -69,6 +81,7 @@ Botsan.prototype.updateData = function updateData(Obj) {
             i.Progress = Obj.Progress;
             i.Status = Obj.Status;
             index = counter;
+            correctEpisode = i;
         }
 
         counter++;
@@ -135,7 +148,15 @@ Botsan.prototype.writeData = function writeData() {
         if (i.Status == "Downloading" || i.Status == "Starting Download") {
             showprogress = "(" + i.Progress + "%)";
         }
-        console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
+        if(Array.isArray(i.Status)){
+            i.Status.forEach(function(i2){
+                console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i2, showprogress);
+            });
+        }else{
+            console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
+        }
+        
+        
     });
 
 }
