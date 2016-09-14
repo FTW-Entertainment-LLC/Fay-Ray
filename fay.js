@@ -96,7 +96,13 @@ function checkDownloads(){
 
 //Processes the /rays_data/downloaded.json file
 function processRaysDownloads(){
-    var downloads = require('./rays_data/downloaded.json');
+    var downloads = [];
+    try {
+        downloads = JSON.parse(botsan.fs.readFileSync('./rays_data/downloaded.json', 'utf8'));
+        
+    } catch (e) {
+        botsan.logError(e);
+    }
     downloads.forEach(function (download) {
         if(in_download_queue.indexOf(download.filename) >= 0 ||
            downloaded_list.indexOf(download.filename) >= 0 ||
