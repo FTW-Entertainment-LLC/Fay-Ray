@@ -57,12 +57,39 @@ Botsan.prototype.getDataStatus = function getDataStatus(Obj) {
     for(i=0; i<this.episode_status.length; i++){
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
-        if((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.Episode.title) ||
-           (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.Episode.torrenturl)){
-            return Obj.Status;
+        if((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
+           (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.torrenturl)){
+            return this.episode_status[i].Status;
         }
     }
     return null;
+}
+
+Botsan.prototype.replaceStrInArr = function replaceStrInArr(array, oldstring, newstring){
+    var index = array.indexOf(oldstring);
+    if(index>=0){
+        array[index] = newstring;
+    }
+}
+
+Botsan.prototype.removeStrFromArr = function replaceStrInArr(array, string){
+    if(!Array.isArray(array))
+        return;
+    var index = array.indexOf(string);
+    if(index>=0){
+        array.splice(index, 1);
+    }
+}
+
+Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename){
+    var found = null;
+    for(i=0;i<arr.length;i++){
+        if(arr[i].filename==filename){
+            found = arr[i];
+            break;
+        }
+    }
+    return found;
 }
 
 Botsan.prototype.updateData = function updateData(Obj) {
@@ -155,8 +182,8 @@ Botsan.prototype.writeData = function writeData() {
         }else{
             console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
         }
-        
-        
+
+
     });
 
 }

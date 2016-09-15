@@ -24,9 +24,20 @@ if (!botsan.fs.existsSync('./rays_data')) {
     botsan.fs.mkdirSync('./rays_data');
 }
 
-if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
-    anime_list = require('./savefile.json');
+config.paths.outputfolder = botsan.path.normalize(config.paths.outputfolder)
+if (!botsan.fs.existsSync(config.paths.outputfolder)) {
+    botsan.fs.mkdirSync(config.paths.outputfolder);
 }
+
+var anime_list = [];
+if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
+    try {
+        anime_list = JSON.parse(botsan.fs.readFileSync('./savefile.json', 'utf8'));
+    } catch (e) {
+        botsan.logError(e);
+    }
+}
+
 var downloaded_list = [];
 if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
     try {
@@ -35,7 +46,6 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
     } catch (e) {
         botsan.logError(e);
     }
-
 }
 
 //Downloads are in a priority queue, with episode number as a priority. Downloads with lower 
@@ -45,6 +55,9 @@ var in_download_queue = [];
 //Encodes are in a priority queue, with episode number as a priority. Encodes with lower 
 var encode_queue = botsan.async.priorityQueue(startEncoding, config.settings.SIMULTANEOUS_ENCODES);
 var in_encode_queue = [];
+
+var ftp_queue = botsan.async.queue(upload_file, config.settings.SIMULTANEOUS_FTP_UPLOADS);
+var in_ftp_queue = []; //Contains the title of each episode in the list.
 
 var scpDefaults = {
     port: 22,
@@ -108,14 +121,26 @@ function processRaysDownloads(){
     }
     downloads.forEach(function (download) {
         if(in_download_queue.indexOf(download.filename) >= 0 ||
-           downloaded_list.indexOf(download.filename) >= 0 ||
-           in_encode_queue.indexOf(download.filename) >= 0){
+           in_encode_queue.indexOf(download.filename) >= 0 ||
+           botsan.getObjByFilename(downloaded_list, download.filename) != null){
             return;
         }
-        //Todo: Check own downloaded.json file to not download anything downloaded again.
+
         var anime = getSavefileDataById(download.uploadsID);
+        //Check if ray has this anime
         if(anime){
-            var episode = new botsan.Episode(download.filename, null, download.episodeno, anime);
+            //Check if Fay has this anime, otherwise create it from ray.
+            var myanime = getAnimeById(download.uploadsID);
+            if(myanime==null){
+                anime.finished_episodes = [];
+                anime_list.push(anime);
+                botsan.saveSettings(anime_list);
+            }
+            if (getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
+                //Don't continue if this episode has already been uploaded.
+                return;
+            }
+            var episode = new botsan.Episode(download.filename, null, download.episodeno, myanime);
             in_download_queue.push(episode.title);
             download_queue.push({ download: download, episode: episode}, episode.episodeno, function () {
                 //Remove it from in_download_queue when done.
@@ -127,6 +152,9 @@ function processRaysDownloads(){
 
 }
 
+//TODO: Function processDownloads (run once on startup) and processRaysDownloads(run everytime it downloads from ray)
+//is redundant.
+
 //Processes the /downloaded.json file, these will be sent to the encoded queue
 function processDownloads(){
     downloaded_list.forEach(function (download) {
@@ -135,7 +163,18 @@ function processDownloads(){
         }
         var anime = getSavefileDataById(download.uploadsID);
         if(anime){
-            var episode = new botsan.Episode(download.filename, null, download.episodeno, anime);
+            var myanime = getAnimeById(download.uploadsID);
+            if(myanime==null){
+                anime.finished_episodes = [];
+                anime_list.push(anime);
+                myanime = anime;
+                botsan.saveSettings(anime_list);
+            }
+            if (myanime.finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
+                //Don't continue if this episode has already been uploaded.
+                return;
+            }
+            var episode = new botsan.Episode(download.filename, null, download.episodeno, myanime);
             onDoneDownloading(episode);
         }
     });
@@ -157,7 +196,15 @@ function getSavefileDataById(id){
         }
     }
     return null;
+}
 
+function getAnimeById(id){
+    for (var key in anime_list) {
+        if(anime_list[key].uploadsID == id){
+            return anime_list[key];
+        }
+    }
+    return null;
 }
 
 function scpDownload(object, callback){
@@ -227,73 +274,66 @@ function startEncoding(encodeObj, callback) {
     //destination, Episode, index
     //Gets the full path
 
-    var folderpath = botsan.path.normalize(botsan.path.resolve(config.paths.torrentfolder));
+    var folderpath = botsan.path.normalize(botsan.path.resolve(config.paths.downloads));
 
+    var encoding_eps = [];
 
+    encoding_eps.push({filename: `${encodeObj.Episode.parent.prefix}_${encodeObj.Episode.episodeno}_ns.mp4`, quality: 480, Episode: encodeObj.Episode});
+
+    //>= to match both 720p and 1080p
+    if (encodeObj.Episode.parent.quality >= 720) {
+        var watchObj = {filename: `${encodeObj.Episode.parent.prefix}_720p_${encodeObj.Episode.episodeno}_ns.mp4`, quality: 720, Episode: encodeObj.Episode};
+        encoding_eps.push(watchObj);
+    }
+    if (encodeObj.Episode.parent.quality == 1080) {
+        encoding_eps.push({filename: `${encodeObj.Episode.parent.prefix}_1080p_${encodeObj.Episode.episodeno}_ns.mp4`, quality: 1080, Episode: encodeObj.Episode});
+    }
+
+    //Check if the files exists in the encoded folder before continuing.
+    var founds = []
+
+    encoding_eps.forEach(function(i){
+        if(botsan.fs.statSync(botsan.path.normalize(`./${config.paths.outputfolder}/${i.filename}`)).isFile()){
+            founds.push(1); //This is just a counter.
+            sendToFTPQueue(i);
+
+        }else{
+            //If the file doesn't exist, then watch for it.
+            encoding_episodes.push(i);
+        }
+    });
+
+    if(founds.length == encoding_eps.length){
+        //If there's no missing episode, then we don't need to encode.
+        //TODO: Only encode the missing resolution.
+        callback();
+        return;
+    }
 
     botsan.updateData({ Episode: encodeObj.Episode, Status: "Transcoding", Progress: 0 });
 
-    //TODO: Check if the files exists in the encoded folder before continuing.
 
     //Write the time
     appendToCC(`\r\n${botsan.getTime()}:\r\n`);
     //Spawn CC through cmd
     var ls = "";
     if (botsan.os.platform() == "win32") {
-        ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.path.normalize(config.paths.outputfolder), "TempFolder:"+config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
+        ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + config.paths.outputfolder, "TempFolder:"+config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
         //ls = botsan.spawn("cmd", ["/c"], { detached: true }); //Skip encode
-        var line = ["/c", "start", "/min", botsan.path.normalize(config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.path.normalize(config.paths.outputfolder), "TempFolder:"+config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"].join(" ");
+        var line = ["/c", "start", "/min", botsan.path.normalize(config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + config.paths.outputfolder, "TempFolder:"+config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"].join(" ");
         appendToCC(line);
     }
     //Spawn CC through shell
     else if (botsan.os.platform() == "linux") {
 
-        var line = config.paths.MonoLocation + " " + config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + botsan.path.normalize(config.paths.outputfolder) + " TempFolder:"+config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+config.paths.ffmpeg+" mencoder:"+config.paths.mencoder+" mkvextract:"+config.paths.mkvextract+" mkvmerge:"+config.paths.mkvmerge+" debug:true";
+        var line = config.paths.MonoLocation + " " + config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + config.paths.outputfolder + " TempFolder:"+config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+config.paths.ffmpeg+" mencoder:"+config.paths.mencoder+" mkvextract:"+config.paths.mkvextract+" mkvmerge:"+config.paths.mkvmerge+" debug:true";
         //Write the line in the cc file.
         appendToCC(line);
         ls = botsan.spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
     }
 
-    //Todo: watch the files prefix_(quality_)?episodeno_ns.mp4
-    //When found, create the transcoded object, add it to the transcoded array and send it to FTP.
-
-
-    var filepaths = [];
-    filepaths.push({path: botsan.path.resolve(`${config.paths.outputfolder}${encodeObj.Episode.parent.prefix}_${encodeObj.Episode.episodeno}_ns.mp4`), quality: 480});
-
-    //>= to match both 720p and 1080p
-    if (encodeObj.Episode.parent.quality >= 720) {
-        filepaths.push({path: botsan.path.resolve(`${config.paths.outputfolder}${encodeObj.Episode.parent.prefix}_720p_${encodeObj.Episode.episodeno}_ns.mp4`), quality: 720});
-    }
-    if (encodeObj.Episode.parent.quality == 1080) {
-        filepaths.push({path: botsan.path.resolve(`${config.paths.outputfolder}${encodeObj.Episode.parent.prefix}_1080p_${encodeObj.Episode.episodeno}_ns.mp4`), quality: 1080});
-    }
-
-    var status = ["Transcoding"];
-    filepaths.forEach(function (i) {
-
-        botsan.fs.watchFile(i.path, (curr, prev) => {
-            if(curr.size==0){
-                return;
-            }
-            //TODO, add check to not add it again if it's already uploading/uploaded
-            //Any change to the file will trigger this function.
-            //The file shouldn't change, but just in case it happens.
-
-            //Now we can upload the file!
-            status.push(`Uploading ${i.quality}p`);
-            botsan.updateData({ Episode: encodeObj.Episode, Status: status, Progress: 0 });
-
-            /*in_ftp_queue.push(encodeObj.Episode.title);
-            ftp_queue.push({ filepath: i.path, Episode: encodeObj.Episode }, function () {
-                in_ftp_queue.splice(in_ftp_queue.indexOf(encodeObj.Episode.title), 1);
-                console.log(`removed ${encodeObj.Episode.title} from download queue.`);
-                //TODO: Unwatch file.
-            });*/
-        });
-
-    });
-
+    //Array so it can display more status for each episodes.
+    botsan.updateData({ Episode: encodeObj.Episode, Status: ["Transcoding"], Progress: 0 });
 
 
     ls.stdout.on('data', function (data) {
@@ -316,11 +356,50 @@ function startEncoding(encodeObj, callback) {
 
     //Todo: If the process closes with a different code than 0, stop watching files and output error.
     ls.on('close', function (code) {
-        botsan.updateData({ Episode: encodeObj.Episode, Status: "CancerCoder closed", Progress: 0 });
+        var status = botsan.getDataStatus(encodeObj.Episode);
+        botsan.removeStrFromArr(status, "Transcoding");
+        botsan.updateData({ Episode: encodeObj.Episode, Status: status, Progress: 0 });
+
         callback();
         //All encodes done, callback to tell async we're finished and continue with next episode.
     });
 
+}
+
+//Object array: [{filename, quality, Episode}]
+var encoding_episodes = [];
+botsan.fs.watch(config.paths.outputfolder, function(event, who) {
+
+    if (event === 'rename') {
+        for(i=0;i<encoding_episodes.length;i++){
+            var str = encoding_episodes[i].filename;
+            if(encoding_episodes[i].filename===who){
+                var encodedEp = encoding_episodes[i];
+                //TODO, add check to not add it again if it's already uploading/uploaded
+                //Any change to the file will trigger this function.
+                //The file shouldn't change, but just in case it happens.
+
+                //Now we can upload the file!
+                sendToFTPQueue(encodedEp);
+
+                break;
+            }
+        }
+    }
+
+});
+
+function sendToFTPQueue(encodedEp){
+    var status = botsan.getDataStatus(encodedEp.Episode);
+    if(!Array.isArray(status)){
+        botsan.updateData({ Episode: encodedEp.Episode, Status: "In upload queue", Progress: 0 });
+    }
+
+    in_ftp_queue.push(encodedEp.Episode.title);
+    ftp_queue.push(encodedEp, function () {
+        in_ftp_queue.splice(in_ftp_queue.indexOf(encodedEp.Episode.title), 1);
+        //console.log(`removed ${encodedEp.filename} from upload queue.`);
+    });
 }
 
 function appendToCC(str){
@@ -330,5 +409,112 @@ function appendToCC(str){
     //Create a new one.
     botsan.fs.appendFile('./cc.txt', str, function (err) {
         if (err) throw err;
+    });
+}
+
+var uploaded_episodes = []; //Array of object uplObj
+/*
+uplObj: {filename, quality, Episode}
+*/
+function upload_file(uplObj, callback) {
+
+
+
+    var FTPc = new botsan.FClient();
+
+    FTPc.connect({ host: config.ftp.host, port: 21, user: config.ftp.user, password: config.ftp.password });
+
+    FTPc.on('ready', function () {
+
+        var status = botsan.getDataStatus(uplObj.Episode);
+        if(!Array.isArray(status)){
+            status = [];
+        }
+        status.push(`Uploading ${uplObj.quality}p to Zeus`);
+        botsan.updateData({ Episode: uplObj.Episode, Status: status, Progress: 0 });
+        FTPc.binary(function (err) { if (err) throw err; });
+
+
+
+        FTPc.list(uplObj.Episode.parent.prefix, function (err, list) {  //Check if the folder exists.
+            if (err) {
+                logError(err);
+                console.log(err);
+                throw err;
+            }
+            if (list.length == 0) { //If there's no prefix directory, lets create one.
+                FTPc.mkdir(uplObj.Episode.parent.prefix, function (err) {
+                    if (err) {
+                        if (err.code = 550) {//Directory already exist
+                            //Different function created the directory before this one.
+                            uploadOp(uplObj, FTPc);
+                            return;
+                        } else {
+                            logError(err);
+                            console.log(err);
+                            throw err;
+                        }
+
+                    }else{
+                        uploadOp(uplObj, FTPc);
+                    }
+                });
+            } else {
+                uploadOp(uplObj, FTPc);
+            }
+        });
+    });
+    FTPc.on('error', function (err) {
+        if (err) {
+            logError(err);
+            if (err.code == 421) {
+                //Todo
+                //Too many connections
+            }
+            console.log(err);
+            throw err;
+        };
+    });
+    FTPc.on('end', function (err) {
+        if (err) {
+            logError(err);
+            throw err;
+        }
+
+
+
+        //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded. TODO
+        if(uplObj.quality == uplObj.Episode.parent.quality){
+            uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
+            botsan.saveSettings(anime_list);
+        }
+
+
+        callback();
+    });
+
+
+}
+/*
+uplObj: {filename, quality, Episode}
+*/
+function uploadOp(uplObj, FTPc) {
+    FTPc.cwd(uplObj.Episode.parent.prefix, function (err) {
+        if (err) {
+            logError(err);
+            console.log(err);
+        }
+        FTPc.put(botsan.path.resolve(`./${config.paths.outputfolder}/${uplObj.filename}`), uplObj.filename, function (err) {
+            if (err) {
+                logError(err);
+                console.log(err);
+            }
+
+            var status = botsan.getDataStatus(uplObj.Episode);
+            botsan.replaceStrInArr(status, `Uploading ${uplObj.quality}p to Zeus` ,`${uplObj.quality}p upload Finished`);
+            botsan.updateData({ Episode: uplObj.Episode, Status: status, Progress: 0 });
+
+            FTPc.end();
+        });
     });
 }

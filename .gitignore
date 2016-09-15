@@ -30,9 +30,10 @@ node_modules
 #folders
 encoded
 torrents
+downloads
+rays_data
+
 cc.txt
 *.ftpsync_settings
 error.txt
-ray_savefile.json
 downloaded.json
-downloads
