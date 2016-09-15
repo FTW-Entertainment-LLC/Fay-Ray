@@ -134,6 +134,7 @@ function processRaysDownloads(){
             if(myanime==null){
                 anime.finished_episodes = [];
                 anime_list.push(anime);
+                myanime = anime;
                 botsan.saveSettings(anime_list);
             }
             if (getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
