@@ -247,7 +247,7 @@ function onDoneDownloading(Episode) {
     botsan.updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
     botsan.fs.readdir(botsan.path.normalize(config.paths.downloads), function (err, files) {
         if (err) {
-            logError(err);
+            botsan.logError(err);
             throw (err);
         }
         var index = 0;
@@ -352,7 +352,7 @@ function startEncoding(encodeObj, callback) {
     ls.on('error', function (err) {
         if (err) {
             console.log(err);
-            logError(err);
+            botsan.logError(err);
         }
     });
 
@@ -440,7 +440,7 @@ function upload_file(uplObj, callback) {
 
         FTPc.list(uplObj.Episode.parent.prefix, function (err, list) {  //Check if the folder exists.
             if (err) {
-                logError(err);
+                botsan.logError(err);
                 console.log(err);
                 throw err;
             }
@@ -452,7 +452,7 @@ function upload_file(uplObj, callback) {
                             uploadOp(uplObj, FTPc);
                             return;
                         } else {
-                            logError(err);
+                            botsan.logError(err);
                             console.log(err);
                             throw err;
                         }
@@ -468,7 +468,7 @@ function upload_file(uplObj, callback) {
     });
     FTPc.on('error', function (err) {
         if (err) {
-            logError(err);
+            botsan.logError(err);
             if (err.code == 421) {
                 //Todo
                 //Too many connections
@@ -479,7 +479,7 @@ function upload_file(uplObj, callback) {
     });
     FTPc.on('end', function (err) {
         if (err) {
-            logError(err);
+            botsan.logError(err);
             throw err;
         }
 
@@ -503,12 +503,12 @@ uplObj: {filename, quality, Episode}
 function uploadOp(uplObj, FTPc) {
     FTPc.cwd(uplObj.Episode.parent.prefix, function (err) {
         if (err) {
-            logError(err);
+            botsan.logError(err);
             console.log(err);
         }
         FTPc.put(botsan.path.resolve(`./${config.paths.outputfolder}/${uplObj.filename}`), uplObj.filename, function (err) {
             if (err) {
-                logError(err);
+                botsan.logError(err);
                 console.log(err);
             }
 
