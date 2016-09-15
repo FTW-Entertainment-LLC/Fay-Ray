@@ -293,14 +293,16 @@ function startEncoding(encodeObj, callback) {
     var founds = []
 
     encoding_eps.forEach(function(i){
-        if(botsan.fs.statSync(botsan.path.normalize(`./${config.paths.outputfolder}/${i.filename}`)).isFile()){
-            founds.push(1); //This is just a counter.
-            sendToFTPQueue(i);
-
-        }else{
+        try{
+            if(botsan.fs.statSync(botsan.path.normalize(`./${config.paths.outputfolder}/${i.filename}`)).isFile()){
+                founds.push(1); //This is just a counter.
+                sendToFTPQueue(i);
+            }
+        }catch (err){
             //If the file doesn't exist, then watch for it.
-            encoding_episodes.push(i);
+            encoding_episodes.push(i)
         }
+
     });
 
     if(founds.length == encoding_eps.length){
