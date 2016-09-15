@@ -175,13 +175,16 @@ Botsan.prototype.writeData = function writeData() {
         if (i.Status == "Downloading" || i.Status == "Starting Download") {
             showprogress = "(" + i.Progress + "%)";
         }
-        if(Array.isArray(i.Status)){
-            i.Status.forEach(function(i2){
-                console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i2, showprogress);
-            });
-        }else{
-            console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
+        if(i.Episode.parent!=null){
+            if(Array.isArray(i.Status)){
+                i.Status.forEach(function(i2){
+                    console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i2, showprogress);
+                });
+            }else{
+                console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
+            }
         }
+
 
 
     });
