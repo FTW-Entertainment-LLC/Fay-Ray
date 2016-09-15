@@ -30,4 +30,12 @@ node_modules
 #folders
 encoded
 torrents
+downloads
+rays_data
+
 cc.txt
+*.ftpsync_settings
+error.txt
+downloaded.json
+/config.ini
+/savefile.json

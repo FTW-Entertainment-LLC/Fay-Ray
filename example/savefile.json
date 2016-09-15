@@ -1,0 +1,16 @@
+[
+    {
+        "title": "Military!",
+        "prefix": "military",
+        "regex": "\\[Commie\\] Military! - (\\d{2}) \\[.*\\].mkv",
+        "nyaasearch": "Military%21",
+        "nyaauser": 76430,
+        "uploadsID": 0,
+        "quality": 720,
+        "finished_episodes": [
+            1,
+            2,
+            3
+        ]
+    }
+]
