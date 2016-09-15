@@ -11,3 +11,6 @@ Ray is the one who will listen to a rss feed, and download series & episodes.
 ## How to use
 1. Clone or download the repository.
 2. Run `npm install` to install the dependencies.
+3. Setup the config.ini file and place it in . See example folder.
+4. Setup Ray's savefile, see example folder.
+5. Run `node Fay` or `node Ray` (Fay may need root privileges due to CancerCoder)
