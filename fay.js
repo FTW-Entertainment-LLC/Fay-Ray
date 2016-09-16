@@ -347,8 +347,9 @@ function startEncoding(encodeObj, callback) {
     });
 
     ls.stderr.on('data', function (data) {
-        console.log('stderr: ' + data);
-        appendToCC(data);
+        //TODO: Show progress
+        //console.log('stderr: ' + data);
+        //appendToCC(data);
     });
     ls.on('error', function (err) {
         if (err) {
