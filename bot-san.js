@@ -118,9 +118,20 @@ Botsan.prototype.updateData = function updateData(Obj) {
 
     if (index == -1) {
         this.episode_status.push(Obj);
+
         this.episode_status.sort(this.compareEpisodeData);
     }
     this.writeData();
+}
+
+Botsan.prototype.clearData = function clearData(Obj) {
+    for(i=0;i<this.episode_status.length;i++){
+        if((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
+           (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.torrenturl)){
+            this.episode_status.splice(i, 1);
+            break;
+        }
+    }
 }
 
 Botsan.prototype.updateAppData = function updateAppData(Obj) {
@@ -165,7 +176,7 @@ Botsan.prototype.writeData = function writeData() {
     }else{
         return;
     }
-    
+
     if (this.os.platform() == "win32") {
         process.stdout.write("\u001b[2J\u001b[0;0H");
     }
@@ -206,6 +217,10 @@ Botsan.prototype.compareAppData = function compareAppData(a,b){
 }
 
 Botsan.prototype.compareEpisodeData = function compareEpisodeData(a,b){
+    if (a.Episode.title < b.Episode.title)
+        return -1;
+    if (a.Episode.title > b.Episode.title)
+        return 1;
     if (a.Episode.episodeno < b.Episode.episodeno)
         return -1;
     if (a.Episode.episodeno > b.Episode.episodeno)

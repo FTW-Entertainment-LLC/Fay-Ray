@@ -491,6 +491,9 @@ function upload_file(uplObj, callback) {
         if(uplObj.quality == uplObj.Episode.parent.quality){
             uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
             botsan.saveSettings(anime_list);
+            setTimeout(function(){
+                botsan.clearData(uplObj.Episode);
+            }, 3600000); //Clear after 1 hour
         }
 
 
