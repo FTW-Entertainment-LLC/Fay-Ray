@@ -490,6 +490,7 @@ function upload_file(uplObj, callback) {
         //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded. TODO
         if(uplObj.quality == uplObj.Episode.parent.quality){
             uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
+            uplObj.Episode.parent.finished_episodes.sort(function(a, b){return a - b});
             botsan.saveSettings(anime_list);
             setTimeout(function(){
                 botsan.clearData(uplObj.Episode);
