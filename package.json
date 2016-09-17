@@ -1,8 +1,7 @@
 {
-  "name": "bot-san",
-  "version": "0.0.1",
-  "description": "bot-san",
-  "main": "app.js",
+  "name": "Fay-Ray",
+  "version": "1.0.0",
+  "description": "Fay & Ray are the autonomous bots for AnimeFTW. The bots will download, encode and upload episodes to AnimeFTW as they get released to the nyaa feed.",
   "author": {
     "name": "Hani",
     "email": "enic@animeftw.tv"
