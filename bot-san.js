@@ -17,6 +17,7 @@ function Botsan() {
     //These variables are for the console output only. Handled by the functions UpdateData, UpdateAppData and writeData
     this.application_status = [];
     this.episode_status = [];
+    this.last_refresh = 0;
 
 }
 
@@ -157,6 +158,14 @@ Botsan.prototype.startConsole = function startConsole() {
 }
 
 Botsan.prototype.writeData = function writeData() {
+    var now = new Date().getTime();
+    var last_refresh = this.last_refresh;
+    if(last_refresh+200 < now){
+        this.last_refresh = now;
+    }else{
+        return;
+    }
+    
     if (this.os.platform() == "win32") {
         process.stdout.write("\u001b[2J\u001b[0;0H");
     }

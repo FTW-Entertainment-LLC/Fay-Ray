@@ -1,7 +1,6 @@
 var bsan = require('./bot-san.js');
 var botsan = new bsan();
-//botsan.startConsole();
-botsan.writeData();
+botsan.startConsole();
 
 
 var config;

@@ -2,7 +2,7 @@ var bsan = require('./bot-san.js');
 var Client  = require('scp2').Client;
 var botsan = new bsan();
 botsan.writeData();
-//botsan.startConsole();
+botsan.startConsole();
 
 
 
@@ -343,7 +343,7 @@ function startEncoding(encodeObj, callback) {
         if (DEBUG) {
             console.log('stdout: ' + data);
         }
-        appendToCC(data);
+        //appendToCC(data);
     });
 
     ls.stderr.on('data', function (data) {
