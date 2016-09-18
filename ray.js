@@ -129,7 +129,6 @@ function downloadEpisodes(Episode, callback) {
 
 function onTorrentAdd(torrent, Episode, callback) {
     botsan.updateData({ Episode: Episode, Status: "Starting Download", Progress: Math.floor(torrent.progress * 100) });
-    //Go through all the files in the torrent and download the one one I need
     /*torrent.files.forEach(function ontorrent(file) {
 
         //Todo: Check for video files, we don't need to download anything else.
@@ -182,7 +181,7 @@ function onDoneDownloading(file, Episode, callback) {
         }
         var index = 0;
         /*Look for the file in the whole torrents folder, then
-         * get the index for it, and send it off to the encode queue */
+         * get the index for it, and send it off downloaded.json */
         for (index; index < files.length; index++) {
             if (files[index] == file.name) {
                 var downloadedObj = new botsan.downloaded(Episode.parent.uploadsID, file.name, Episode.episodeno);
@@ -191,8 +190,17 @@ function onDoneDownloading(file, Episode, callback) {
 
                 Episode.parent.finished_episodes.sort(function(a, b){return a - b});
                 //numeric sort
+                var push = true;
+                for(i=0;i<downloaded_list.length;i++){
+                    var dwnld = downloaded_list[i];
 
-                downloaded_list.push(downloadedObj);
+                    if(dwnld.uploadsID == downloadedObj.uploadsID && dwnld.episodeno == downloadedObj.episodeno){
+                        push=false;
+                        break;
+                    }
+                }
+                if(push)
+                    downloaded_list.push(downloadedObj);
                 botsan.writeDownloads(downloaded_list, callback);
                 botsan.saveSettings(anime_list);
                 botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
