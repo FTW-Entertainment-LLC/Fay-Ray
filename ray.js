@@ -53,7 +53,7 @@ function checkNyaa(series, callback) {
 
         if (err) {
             console.log(err);
-            logError(err);
+            botsan.logError(err);
         }
 
         var found = 0;
@@ -137,7 +137,7 @@ function onTorrentAdd(torrent, Episode, callback) {
     var finished = false;
     torrent.on('error', function(){
         console.log(err);
-        logError(err);
+        botsan.logError(err);
         callback();
     });
 
@@ -150,7 +150,7 @@ function onTorrentAdd(torrent, Episode, callback) {
     torrent.on('done', function (err) {
         if (err) {
             console.log(err);
-            logError(err);
+            botsan.logError(err);
         }
         finished = true;
         torrent.files.forEach(function (file) {
@@ -163,7 +163,7 @@ function onTorrentAdd(torrent, Episode, callback) {
         /*tclient.remove(Episode.torrenturl, function (err) {
             if (err) {
                 console.log(err);
-                logError(err);
+                botsan.logError(err);
             }
         });*/
     });
@@ -175,7 +175,7 @@ function onDoneDownloading(file, Episode, callback) {
     botsan.updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
     botsan.fs.readdir(botsan.path.normalize(config.paths.torrentfolder), function (err, files) {
         if (err) {
-            logError(err);
+            botsan.logError(err);
             callback();
             throw (err);
         }
