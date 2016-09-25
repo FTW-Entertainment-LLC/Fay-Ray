@@ -26,6 +26,9 @@ build/Release
 # https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git
 node_modules
 
+#PhpStorm directory
+.idea
+
 
 #folders
 encoded
@@ -39,3 +42,4 @@ error.txt
 downloaded.json
 /config.ini
 /savefile.json
+
