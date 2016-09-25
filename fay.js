@@ -153,8 +153,7 @@ function processRaysDownloads(){
 
 }
 
-//TODO: Function processDownloads (run once on startup) and processRaysDownloads(run everytime it downloads from ray)
-//is redundant.
+//TODO: Function processDownloads (run once on startup) and processRaysDownloads(run everytime it downloads from ray) is redundant. Make it non-redundant.
 
 //Processes the /downloaded.json file, these will be sent to the encoded queue
 function processDownloads(){
