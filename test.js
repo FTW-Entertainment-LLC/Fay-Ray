@@ -4,7 +4,6 @@
 var tsc = require('./Transcoder.js');
 var Transcoder = new tsc();
 
-//Transcoder.processFile('C:/Users/Hani/Videos/in.mkv', function(){
 Transcoder.run('C:/Users/Hani/Downloads/[DmonHiro] Military! (BD, 720p)/[DmonHiro] Military! - Mission 01 - The Mission Begins! (BD, 720p) [EE1BBA47].mkv', 'C:/Users/Hani/Videos/out.mp4', function(){
 
 });

@@ -20,6 +20,10 @@ config.paths.downloads = botsan.path.normalize(config.paths.downloads)
 if (!botsan.fs.existsSync(config.paths.downloads)) {
     botsan.fs.mkdirSync(config.paths.downloads);
 }
+config.paths.temp = botsan.path.normalize(config.paths.temp)
+if (!botsan.fs.existsSync(config.paths.temp)) {
+    botsan.fs.mkdirSync(config.paths.temp);
+}
 if (!botsan.fs.existsSync('./rays_data')) {
     botsan.fs.mkdirSync('./rays_data');
 }
