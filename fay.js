@@ -465,6 +465,7 @@ function upload_file(uplObj, callback) {
 
         //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded. TODO
         if(uplObj.quality == uplObj.Episode.parent.quality){
+            botsan.sendNotification(`${uplObj.Episode.parent.title} #${uplObj.Episode.episodeno} was uploaded to Zeus`);
             uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
             uplObj.Episode.parent.finished_episodes.sort(function(a, b){return a - b});
             botsan.saveSettings(anime_list);
@@ -496,8 +497,6 @@ function uploadOp(uplObj, FTPc) {
 
             var status = botsan.getDataStatus(uplObj.Episode);
             botsan.replaceStrInArr(status, `Uploading ${uplObj.quality}p to Zeus` ,`${uplObj.quality}p upload Finished`);
-
-            botsan.sendNotification(`${uplObj.Episode.parent.title} #${uplObj.Episode.episodeno} ${uplObj.quality}p was uploaded to Zeus`);
             botsan.updateData({ Episode: uplObj.Episode, Status: status, Progress: 0 });
 
             FTPc.end();
