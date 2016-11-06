@@ -26,22 +26,22 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
 }
 
 //Downloads are in a priority queue, with episode number as a priority. Downloads with lower 
-var download_queue = botsan.async.priorityQueue(scpDownload, this.config.settings.SIMULTANEOUS_SCP);
+var download_queue = botsan.async.priorityQueue(scpDownload, botsan.config.settings.SIMULTANEOUS_SCP);
 var in_download_queue = [];
 
 //Encodes are in a priority queue, with episode number as a priority. Encodes with lower 
-var encode_queue = botsan.async.priorityQueue(startEncoding, this.config.settings.SIMULTANEOUS_ENCODES);
+var encode_queue = botsan.async.priorityQueue(startEncoding, botsan.config.settings.SIMULTANEOUS_ENCODES);
 var in_encode_queue = [];
 
-var ftp_queue = botsan.async.queue(upload_file, this.config.settings.SIMULTANEOUS_FTP_UPLOADS);
+var ftp_queue = botsan.async.queue(upload_file, botsan.config.settings.SIMULTANEOUS_FTP_UPLOADS);
 var in_ftp_queue = []; //Contains the title of each episode in the list.
 
 var scpDefaults = {
     port: 22,
-    host: this.config.scp.host,
-    username: this.config.scp.username,
-    passphrase: this.config.scp.passphrase,
-    privateKey: botsan.fs.readFileSync(botsan.path.normalize(this.config.scp.privatekey)),
+    host: botsan.config.scp.host,
+    username: botsan.config.scp.username,
+    passphrase: botsan.config.scp.passphrase,
+    privateKey: botsan.fs.readFileSync(botsan.path.normalize(botsan.config.scp.privatekey)),
 };
 
 
@@ -75,9 +75,9 @@ function checkDownloads(){
         botsan.updateAppData({ message: "Data scp client status: Disconnected", id: -2 });
     });
 
-    scpClient.download(this.config.paths.seedbox+'/downloaded.json', './rays_data/downloaded.json', function(){
+    scpClient.download(botsan.config.paths.seedbox+'/downloaded.json', './rays_data/downloaded.json', function(){
         botsan.updateAppData({ message: "Fay: Got downloads data from Ray", id: -1 });
-        scpClient.download(this.config.paths.seedbox+'/savefile.json', './rays_data/ray_savefile.json', function(){
+        scpClient.download(botsan.config.paths.seedbox+'/savefile.json', './rays_data/ray_savefile.json', function(){
             botsan.updateAppData({ message: "Fay: Got downloads and savefile data from Ray", id: -1 });
             scpClient.close();
             processRaysDownloads();
@@ -189,7 +189,7 @@ function scpDownload(object, callback){
 
     var privScpClient = new Client(scpDefaults);
 
-    privScpClient.download(this.config.paths.seedbox+'/torrents/'+object.download.filename, this.config.paths.downloads+'/'+object.download.filename, function(){
+    privScpClient.download(botsan.config.paths.seedbox+'/torrents/'+object.download.filename, botsan.config.paths.downloads+'/'+object.download.filename, function(){
         botsan.updateData({ Episode: object.episode, Status: "Download complete", Progress: 0 });
         var downloadedObj = new botsan.downloaded(object.episode.parent.uploadsID, object.download.filename, object.episode.episodeno);
         downloaded_list.push(downloadedObj);
@@ -222,7 +222,7 @@ function scpDownload(object, callback){
 
 function onDoneDownloading(Episode) {
     botsan.updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
-    botsan.fs.readdir(botsan.path.normalize(this.config.paths.downloads), function (err, files) {
+    botsan.fs.readdir(botsan.path.normalize(botsan.config.paths.downloads), function (err, files) {
         if (err) {
             botsan.logError(err);
             throw (err);
@@ -251,7 +251,7 @@ function startEncoding(encodeObj, callback) {
     //destination, Episode, index
     //Gets the full path
 
-    var folderpath = botsan.path.normalize(botsan.path.resolve(this.config.paths.downloads));
+    var folderpath = botsan.path.normalize(botsan.path.resolve(botsan.config.paths.downloads));
 
     var encoding_eps = [];
 
@@ -271,7 +271,7 @@ function startEncoding(encodeObj, callback) {
 
     encoding_eps.forEach(function(i){
         try{
-            if(botsan.fs.statSync(botsan.path.normalize(`./${this.config.paths.outputfolder}/${i.filename}`)).isFile()){
+            if(botsan.fs.statSync(botsan.path.normalize(`./${botsan.config.paths.outputfolder}/${i.filename}`)).isFile()){
                 founds.push(1); //This is just a counter.
                 sendToFTPQueue(i);
             }
@@ -297,15 +297,15 @@ function startEncoding(encodeObj, callback) {
     //Spawn CC through cmd
     var ls = "";
     if (botsan.os.platform() == "win32") {
-        ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(this.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + this.config.paths.outputfolder, "TempFolder:"+this.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
+        ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
         //ls = botsan.spawn("cmd", ["/c"], { detached: true }); //Skip encode
-        var line = ["/c", "start", "/min", botsan.path.normalize(this.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + this.config.paths.outputfolder, "TempFolder:"+this.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"].join(" ");
+        var line = ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"].join(" ");
         appendToCC(line);
     }
     //Spawn CC through shell
     else if (botsan.os.platform() == "linux") {
 
-        var line = this.config.paths.MonoLocation + " " + this.config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + this.config.paths.outputfolder + " TempFolder:"+this.config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+this.config.paths.ffmpeg+" mencoder:"+this.config.paths.mencoder+" mkvextract:"+this.config.paths.mkvextract+" mkvmerge:"+this.config.paths.mkvmerge+" debug:true";
+        var line = botsan.config.paths.MonoLocation + " " + botsan.config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + botsan.config.paths.outputfolder + " TempFolder:"+botsan.config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+botsan.config.paths.ffmpeg+" mencoder:"+botsan.config.paths.mencoder+" mkvextract:"+botsan.config.paths.mkvextract+" mkvmerge:"+botsan.config.paths.mkvmerge+" debug:true";
         //Write the line in the cc file.
         appendToCC(line);
         ls = botsan.spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
@@ -348,7 +348,7 @@ function startEncoding(encodeObj, callback) {
 
 //Object array: [{filename, quality, Episode}]
 var encoding_episodes = [];
-botsan.fs.watch(this.config.paths.outputfolder, function(event, who) {
+botsan.fs.watch(botsan.config.paths.outputfolder, function(event, who) {
 
     if (event === 'rename') {
         for(i=0;i<encoding_episodes.length;i++){
@@ -402,7 +402,7 @@ function upload_file(uplObj, callback) {
 
     var FTPc = new botsan.FClient();
 
-    FTPc.connect({ host: this.config.ftp.host, port: 21, user: this.config.ftp.user, password: this.config.ftp.password });
+    FTPc.connect({ host: botsan.config.ftp.host, port: 21, user: botsan.config.ftp.user, password: botsan.config.ftp.password });
 
     FTPc.on('ready', function () {
 
@@ -488,7 +488,7 @@ function uploadOp(uplObj, FTPc) {
             botsan.logError(err);
             console.log(err);
         }
-        FTPc.put(botsan.path.resolve(`./${this.config.paths.outputfolder}/${uplObj.filename}`), uplObj.filename, function (err) {
+        FTPc.put(botsan.path.resolve(`./${botsan.config.paths.outputfolder}/${uplObj.filename}`), uplObj.filename, function (err) {
             if (err) {
                 botsan.logError(err);
                 console.log(err);
