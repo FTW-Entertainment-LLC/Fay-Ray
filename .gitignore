@@ -44,3 +44,5 @@ downloaded.json
 /config.ini
 /savefile.json
 
+ffprobe.exe
+ffmpeg.exe

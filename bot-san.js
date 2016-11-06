@@ -14,10 +14,41 @@ function Botsan() {
     this.date = new Date();
     this.tclient = new this.WebTorrent();
 
+    //Slack
+    var Slack = require('slack-node');
+    this.slack = new Slack();
+    this.slack.setWebhook("https://hooks.slack.com/services/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");
+
     //These variables are for the console output only. Handled by the functions UpdateData, UpdateAppData and writeData
     this.application_status = [];
     this.episode_status = [];
     this.last_refresh = 0;
+
+    //Config
+    this.config;
+
+    if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
+        this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
+    }else{
+        console.error("No config.ini file found!");
+    }
+
+    this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
+    if (!this.fs.existsSync(this.config.paths.downloads)) {
+        this.fs.mkdirSync(this.config.paths.downloads);
+    }
+    this.config.paths.temp = this.path.normalize(this.config.paths.temp)
+    if (!this.fs.existsSync(this.config.paths.temp)) {
+        this.fs.mkdirSync(this.config.paths.temp);
+    }
+    if (!this.fs.existsSync('./rays_data')) {
+        this.fs.mkdirSync('./rays_data');
+    }
+
+    this.config.paths.outputfolder = this.path.normalize(this.config.paths.outputfolder)
+    if (!this.fs.existsSync(this.config.paths.outputfolder)) {
+        this.fs.mkdirSync(this.config.paths.outputfolder);
+    }
 
 }
 
@@ -28,16 +59,15 @@ Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent
     this.parent = parent; //Reference to the anime object.
 };
 
-Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaauser, uploadsID, episode, quality) {
+Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaauser, uploadsID, quality, finished_episodes) {
     this.title = title; //Anime title
     this.prefix = prefix; //AnimeFTW prefix
     this.regex = regex; //Regex to match the nyaa entries and group episode number.
     this.nyaasearch = nyaasearch; //Nyaa search field
     this.nyaauser = nyaauser; //Nyaa user to use search in
     this.uploadsID = uploadsID; // uploads board ID
-    //this.episode = episode; //Episode number, if starting from the beginning, input 0.
     this.quality = quality; //Quality for the series to be encoded in. Can be 480, 720 or 1080.
-    this.finished_episodes = []; //Change episode to use a list, to keep track which episodes are done.
+    this.finished_episodes = finished_episodes;
 };
 
 Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno) {
@@ -255,6 +285,8 @@ Botsan.prototype.logError = function logError(err) {
 
         console.log('The "', err, '" was appended to file!');
     });
+
+    this.errorToSlack(message);
 }
 
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
@@ -302,6 +334,40 @@ Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, js
     }
     return null;
 
+}
+
+Botsan.prototype.createFilename = function createFilename(prefix, episode, resolution) {
+    if(!prefix)
+        return null;
+    if(!episode)
+        return null;
+    if(!resolution)
+        return null;
+
+    var res = "";
+    if(resolution>480){
+        res = `_${resolution}p`
+    }
+    return `${prefix}${res}_${episode}_ns.mp4`;
+}
+
+Botsan.prototype.errorToSlack = function errorToSlack(message){
+    this.slack.webhook({
+        channel: "#fay-errors",
+        username: "Fay",
+        text: message
+    }, function(err, response){
+        console.log(response);
+    });
+}
+Botsan.prototype.sendNotification = function errorToSlack(message){
+    this.slack.webhook({
+        channel: "#managers",
+        username: "Fay",
+        text: message
+    }, function(err, response){
+        console.log(response);
+    });
 }
 
 module.exports = Botsan;
