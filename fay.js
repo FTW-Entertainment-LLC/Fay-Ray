@@ -497,7 +497,7 @@ function uploadOp(uplObj, FTPc) {
             var status = botsan.getDataStatus(uplObj.Episode);
             botsan.replaceStrInArr(status, `Uploading ${uplObj.quality}p to Zeus` ,`${uplObj.quality}p upload Finished`);
 
-            this.sendNotification(`${uplObj.Episode.parent.title} ${uplObj.quality}p was uploaded to Zeus`);
+            botsan.sendNotification(`${uplObj.Episode.parent.title} ${uplObj.quality}p was uploaded to Zeus`);
             botsan.updateData({ Episode: uplObj.Episode, Status: status, Progress: 0 });
 
             FTPc.end();
