@@ -1,10 +1,9 @@
 /**
  * Created by Enic on 2016-11-03.
  */
-function Transcoder() {
+function Transcoder(botsan) {
     this.ffmpeg = require('fluent-ffmpeg');
-    var Botsan = require('./bot-san.js');
-    this.botsan = new Botsan();
+    this.botsan = botsan;
     //medium preset is normal
     this.options = {bitrate: 0, preset: 'medium', passlog: './transcoding/pass', width: 854, height: 480};
 }

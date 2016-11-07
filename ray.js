@@ -16,15 +16,6 @@ if (!botsan.fs.existsSync(botsan.path.normalize(config.paths.torrentfolder))) {
     botsan.fs.mkdirSync(botsan.path.normalize(config.paths.torrentfolder));
 }
 
-var anime_list = [];
-if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
-    try {
-        anime_list = JSON.parse(botsan.fs.readFileSync('./savefile.json', 'utf8'));
-    } catch (e) {
-        botsan.logError(e);
-    }
-}
-
 var downloaded_list = [];
 if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
     try {
@@ -108,7 +99,7 @@ function checkNyaa(series, callback) {
 
 
 function startQueue() {
-    nyaa_queue.push(anime_list);
+    nyaa_queue.push(botsan.anime_list);
 }
 
 function nyaaUrl(search, user) {
@@ -200,7 +191,7 @@ function onDoneDownloading(file, Episode, callback) {
             downloaded_list.push(downloadedObj);
 
         botsan.writeDownloads(downloaded_list, callback);
-        botsan.saveSettings(anime_list);
+        botsan.saveSettings(botsan.anime_list);
         botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
 
         setTimeout(function(){

@@ -1,10 +1,10 @@
 /**
  * Created by Enic on 2016-11-03.
  */
-var tsc = require('./Transcoder.js');
-var bsan = require('./bot-san.js');
-var Transcoder = new tsc();
-var botsan = new bsan();
+var Transcoder = require('./Transcoder.js');
+var Botsan = require('./bot-san.js');
+var botsan = new Botsan();
+var Transcoder = new Transcoder(botsan);
 
 var source = "C:/Users/Hani/Videos/[MK-Pn8] Sword Art Online II - 01v3 [BD 720p][Hi10][Dual][370C2D66].mkv";
 

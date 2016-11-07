@@ -26,12 +26,17 @@ function Botsan() {
 
     //Config
     this.config;
+    this.anime_list;
+
+    this.loadSettings();
 
     if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
         this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
     }else{
         console.error("No config.ini file found!");
     }
+
+
 
     this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
     if (!this.fs.existsSync(this.config.paths.downloads)) {
@@ -50,6 +55,9 @@ function Botsan() {
         this.fs.mkdirSync(this.config.paths.outputfolder);
     }
 
+
+    var ctrl = require('./control.js');
+    var control = new ctrl(this);
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
@@ -287,6 +295,16 @@ Botsan.prototype.logError = function logError(err) {
     });
 
     this.errorToSlack(message);
+}
+
+Botsan.prototype.loadSettings = function loadSettings() {
+    if (this.fs.existsSync(this.path.normalize("./savefile.json"))) {
+        try {
+            this.anime_list = JSON.parse(this.fs.readFileSync('./savefile.json', 'utf8'));
+        } catch (e) {
+            this.logError(e);
+        }
+    }
 }
 
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
