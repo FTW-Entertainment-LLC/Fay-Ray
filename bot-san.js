@@ -1,4 +1,5 @@
 function Botsan() {
+    "use strict";
     this.feed = require("feed-read");
     this.async = require('async');
     this.WebTorrent = require('webtorrent');
@@ -13,6 +14,10 @@ function Botsan() {
     this.os = require('os');
     this.date = new Date();
     this.tclient = new this.WebTorrent();
+
+    const EventEmitter = require('events');
+    class MyEmitter extends EventEmitter {}
+    this.myEmitter = new MyEmitter();
 
     //Slack
     var Slack = require('slack-node');
@@ -203,7 +208,7 @@ Botsan.prototype.startConsole = function startConsole() {
     var t = this;
     setInterval(function () {
         t.writeData();
-    }, 1000);
+    }, 5000);
 }
 
 Botsan.prototype.writeData = function writeData() {
@@ -243,6 +248,8 @@ Botsan.prototype.writeData = function writeData() {
 
 
     });
+
+    this.myEmitter.emit('writeData');
 
 }
 

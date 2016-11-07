@@ -19,6 +19,7 @@
     "node-json2html": "^1.1.1",
     "scp2": "^0.4.0",
     "slack-node": "^0.1.8",
+    "socket.io": "^1.5.1",
     "webtorrent": "^0.95.6"
   },
   "devDependencies": {
