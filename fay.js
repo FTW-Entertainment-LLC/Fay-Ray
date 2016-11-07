@@ -107,14 +107,14 @@ function processRaysDownloads(){
         //Check if ray has this anime
         if(anime){
             //Check if Fay has this anime, otherwise create it from ray.
-            var myanime = getAnimeById(download.uploadsID);
+            var myanime = botsan.getAnimeById(download.uploadsID);
             if(myanime==null){
                 anime.finished_episodes = [];
                 anime_list.push(anime);
                 myanime = anime;
                 botsan.saveSettings(anime_list);
             }
-            if (getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
+            if (botsan.getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
                 //Don't continue if this episode has already been uploaded.
                 return;
             }
@@ -140,7 +140,7 @@ function processDownloads(){
         }
         var anime = getSavefileDataById(download.uploadsID);
         if(anime){
-            var myanime = getAnimeById(download.uploadsID);
+            var myanime = botsan.getAnimeById(download.uploadsID);
             if(myanime==null){
                 anime.finished_episodes = [];
                 anime_list.push(anime);
@@ -170,15 +170,6 @@ function getSavefileDataById(id){
     for (var key in data) {
         if(data[key].uploadsID == id){
             return data[key];
-        }
-    }
-    return null;
-}
-
-function getAnimeById(id){
-    for (var key in anime_list) {
-        if(anime_list[key].uploadsID == id){
-            return anime_list[key];
         }
     }
     return null;

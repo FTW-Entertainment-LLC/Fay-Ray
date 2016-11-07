@@ -14,6 +14,7 @@ function Botsan() {
     this.os = require('os');
     this.date = new Date();
     this.tclient = new this.WebTorrent();
+    this.nyaa_queue = null;
 
     const EventEmitter = require('events');
     class MyEmitter extends EventEmitter {}
@@ -80,7 +81,11 @@ Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaaus
     this.nyaauser = nyaauser; //Nyaa user to use search in
     this.uploadsID = uploadsID; // uploads board ID
     this.quality = quality; //Quality for the series to be encoded in. Can be 480, 720 or 1080.
-    this.finished_episodes = finished_episodes;
+    this.finished_episodes = [];
+    if(finished_episodes){
+        this.finished_episodes = finished_episodes;
+    }
+
 };
 
 Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno) {
@@ -279,7 +284,10 @@ Botsan.prototype.logError = function logError(err) {
 
     if (typeof err === 'object') {
         if (err.message) {
-            message += '\r\nMessage: ' + err.message;
+            message += `\r\nMessage: ${err.message}`;
+        }
+        if(err.code){
+            message += `\r\nCode: ${err.code}`;
         }
         if (err.stack) {
             message += '\r\nStacktrace:\r\n';
@@ -302,6 +310,16 @@ Botsan.prototype.logError = function logError(err) {
     });
 
     this.errorToSlack(message);
+}
+
+Botsan.prototype.addNewSeries = function addNewSeries(series){
+    if(this.getAnimeById(series.uploadsID))
+        return false;
+
+    this.anime_list.push(series);
+    this.nyaa_queue.push(series);
+    this.saveSettings(this.anime_list);
+    return true;
 }
 
 Botsan.prototype.loadSettings = function loadSettings() {
@@ -393,6 +411,23 @@ Botsan.prototype.sendNotification = function errorToSlack(message){
     }, function(err, response){
         console.log(response);
     });
+}
+
+Botsan.prototype.saveUsers = function saveUsers(users){
+    this.fs.writeFile("./users.json", JSON.stringify(users, null, 4), function (err) {
+        if (err) {
+            throw err;
+        }
+    });
+}
+
+Botsan.prototype.getAnimeById = function getAnimeById(id){
+    for (var key in this.anime_list) {
+        if(this.anime_list[key].uploadsID == id){
+            return this.anime_list[key];
+        }
+    }
+    return null;
 }
 
 module.exports = Botsan;

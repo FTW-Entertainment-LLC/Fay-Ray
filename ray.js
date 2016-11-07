@@ -26,7 +26,7 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
     }
 }
 
-var nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
+botsan.nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
 var torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.SIMULTANEOUS_DOWNLOADS);
 var in_torrent_queue = [];
 var current_downloaded_articles = [];
@@ -99,7 +99,7 @@ function checkNyaa(series, callback) {
 
 
 function startQueue() {
-    nyaa_queue.push(botsan.anime_list);
+    botsan.nyaa_queue.push(botsan.anime_list);
 }
 
 function nyaaUrl(search, user) {
