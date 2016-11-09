@@ -40,6 +40,11 @@ setInterval(startQueue, the_interval);
 
 function checkNyaa(series, callback) {
     var nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
+    if(botsan.feed.identify(nyaaurl)){
+        //TODO: Retry a few times, max 3 reattempts.
+        callback();
+        return;
+    }
     botsan.feed(nyaaurl, function (err, articles) {
 
         if (err) {
