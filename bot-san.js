@@ -12,18 +12,26 @@ function Botsan() {
     this.events = require("events");
     this.FClient = require('ftp');
     this.os = require('os');
+    this.retry = require('retry');
     this.date = new Date();
     this.tclient = new this.WebTorrent();
     this.nyaa_queue = null;
 
     const EventEmitter = require('events');
-    class MyEmitter extends EventEmitter {}
+    class MyEmitter extends EventEmitter {
+    }
     this.myEmitter = new MyEmitter();
 
-    //Slack
-    var Slack = require('slack-node');
-    this.slack = new Slack();
-    this.slack.setWebhook("https://hooks.slack.com/services/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");
+    //Discord
+    var Discord = require('discord.io');
+    this.discord = new Discord.Client({
+        token: "MjQ1ODM3NDA2MzE2NjU4Njkw.CwR6kw.7Jijdp9wStlmzwMqvqnUCyNQ4TY",
+        autorun: true
+    });
+    this.discord.on('ready', function (event) {
+        console.log('Logged in as %s - %s\n', this.username, this.id);
+    });
+
 
     //These variables are for the console output only. Handled by the functions UpdateData, UpdateAppData and writeData
     this.application_status = [];
@@ -38,10 +46,9 @@ function Botsan() {
 
     if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
         this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
-    }else{
+    } else {
         console.error("No config.ini file found!");
     }
-
 
 
     this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
@@ -82,7 +89,7 @@ Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaaus
     this.uploadsID = uploadsID; // uploads board ID
     this.quality = quality; //Quality for the series to be encoded in. Can be 480, 720 or 1080.
     this.finished_episodes = [];
-    if(finished_episodes){
+    if (finished_episodes) {
         this.finished_episodes = finished_episodes;
     }
 
@@ -103,37 +110,37 @@ Botsan.prototype.transcode = function transcode(uploadsID, filename, episodeno, 
 };
 
 Botsan.prototype.getDataStatus = function getDataStatus(Obj) {
-    for(i=0; i<this.episode_status.length; i++){
+    for (i = 0; i < this.episode_status.length; i++) {
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
-        if((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
-           (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.torrenturl)){
+        if ((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
+            (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.torrenturl)) {
             return this.episode_status[i].Status;
         }
     }
     return null;
 }
 
-Botsan.prototype.replaceStrInArr = function replaceStrInArr(array, oldstring, newstring){
+Botsan.prototype.replaceStrInArr = function replaceStrInArr(array, oldstring, newstring) {
     var index = array.indexOf(oldstring);
-    if(index>=0){
+    if (index >= 0) {
         array[index] = newstring;
     }
 }
 
-Botsan.prototype.removeStrFromArr = function replaceStrInArr(array, string){
-    if(!Array.isArray(array))
+Botsan.prototype.removeStrFromArr = function replaceStrInArr(array, string) {
+    if (!Array.isArray(array))
         return;
     var index = array.indexOf(string);
-    if(index>=0){
+    if (index >= 0) {
         array.splice(index, 1);
     }
 }
 
-Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename){
+Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename) {
     var found = null;
-    for(i=0;i<arr.length;i++){
-        if(arr[i].filename==filename){
+    for (i = 0; i < arr.length; i++) {
+        if (arr[i].filename == filename) {
             found = arr[i];
             break;
         }
@@ -147,13 +154,13 @@ Botsan.prototype.updateData = function updateData(Obj) {
     Obj.time = new Date().toISOString();
     var correctEpisode = null;
     this.episode_status.forEach(function (i) {
-        if(correctEpisode!=null)
+        if (correctEpisode != null)
             return;
 
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
-        if((Obj.torrenturl == null && i.Episode.title == Obj.Episode.title) ||
-           (Obj.torrenturl != null && i.Episode.torrenturl == Obj.Episode.torrenturl)){
+        if ((Obj.torrenturl == null && i.Episode.title == Obj.Episode.title) ||
+            (Obj.torrenturl != null && i.Episode.torrenturl == Obj.Episode.torrenturl)) {
             i.Progress = Obj.Progress;
             i.Status = Obj.Status;
             index = counter;
@@ -173,9 +180,9 @@ Botsan.prototype.updateData = function updateData(Obj) {
 }
 
 Botsan.prototype.clearData = function clearData(Obj) {
-    for(i=0;i<this.episode_status.length;i++){
-        if((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
-           (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.torrenturl)){
+    for (i = 0; i < this.episode_status.length; i++) {
+        if ((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
+            (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.torrenturl)) {
             this.episode_status.splice(i, 1);
             break;
         }
@@ -219,9 +226,9 @@ Botsan.prototype.startConsole = function startConsole() {
 Botsan.prototype.writeData = function writeData() {
     var now = new Date().getTime();
     var last_refresh = this.last_refresh;
-    if(last_refresh+200 < now){
+    if (last_refresh + 200 < now) {
         this.last_refresh = now;
-    }else{
+    } else {
         return;
     }
 
@@ -243,11 +250,11 @@ Botsan.prototype.writeData = function writeData() {
         if (i.Status == "Downloading" || i.Status == "Starting Download") {
             showprogress = "(" + i.Progress + "%)";
         }
-        if(Array.isArray(i.Status)){
-            i.Status.forEach(function(i2){
+        if (Array.isArray(i.Status)) {
+            i.Status.forEach(function (i2) {
                 console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i2, showprogress);
             });
-        }else{
+        } else {
             console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
         }
 
@@ -258,7 +265,7 @@ Botsan.prototype.writeData = function writeData() {
 
 }
 
-Botsan.prototype.compareAppData = function compareAppData(a,b){
+Botsan.prototype.compareAppData = function compareAppData(a, b) {
     if (a.id < b.id)
         return -1;
     if (a.id > b.id)
@@ -266,7 +273,7 @@ Botsan.prototype.compareAppData = function compareAppData(a,b){
     return 0;
 }
 
-Botsan.prototype.compareEpisodeData = function compareEpisodeData(a,b){
+Botsan.prototype.compareEpisodeData = function compareEpisodeData(a, b) {
     if (a.Episode.title < b.Episode.title)
         return -1;
     if (a.Episode.title > b.Episode.title)
@@ -286,8 +293,11 @@ Botsan.prototype.logError = function logError(err) {
         if (err.message) {
             message += `\r\nMessage: ${err.message}`;
         }
-        if(err.code){
+        if (err.code) {
             message += `\r\nCode: ${err.code}`;
+        }
+        if (err.statusCode) {
+            message += `\r\nstatusCode: ${err.code}`;
         }
         if (err.stack) {
             message += '\r\nStacktrace:\r\n';
@@ -295,7 +305,7 @@ Botsan.prototype.logError = function logError(err) {
             message += err.stack + "\r\n";
         }
     } else {
-        message += err+'dumpError :: argument is not an object\r\n';
+        message += err + 'dumpError :: argument is not an object\r\n';
     }
 
     //Todo:
@@ -309,11 +319,11 @@ Botsan.prototype.logError = function logError(err) {
         console.log('The "', err, '" was appended to file!');
     });
 
-    this.errorToSlack(message);
+    this.sendNotification(message, true);
 }
 
-Botsan.prototype.addNewSeries = function addNewSeries(series){
-    if(this.getAnimeById(series.uploadsID))
+Botsan.prototype.addNewSeries = function addNewSeries(series) {
+    if (this.getAnimeById(series.uploadsID))
         return false;
 
     this.anime_list.push(series);
@@ -344,7 +354,7 @@ Botsan.prototype.saveSettings = function saveSettings(anime_list) {
     });
 }
 
-Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback){
+Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback) {
     var outputFilename = this.path.normalize('./downloaded.json');
     this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
         if (err) {
@@ -356,7 +366,7 @@ Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callb
 
 }
 
-Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, callback){
+Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, callback) {
     var outputFilename = this.path.normalize('./transcodes.json');
     this.fs.writeFile(outputFilename, JSON.stringify(transcodes_list, null, 4), function (err) {
         if (err) {
@@ -368,10 +378,10 @@ Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, cal
 
 }
 
-Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, json){
+Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, json) {
     var data = require(json);
     for (var key in data) {
-        if(data[key].filename == filename){
+        if (data[key].filename == filename) {
             return data[key];
         }
     }
@@ -380,40 +390,43 @@ Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, js
 }
 
 Botsan.prototype.createFilename = function createFilename(prefix, episode, resolution) {
-    if(!prefix)
+    if (!prefix)
         return null;
-    if(!episode)
+    if (!episode)
         return null;
-    if(!resolution)
+    if (!resolution)
         return null;
 
     var res = "";
-    if(resolution>480){
-        res = `_${resolution}p`
+    if (resolution > 480) {
+        res = `_${resolution}p`;
     }
     return `${prefix}${res}_${episode}_ns.mp4`;
 }
 
-Botsan.prototype.errorToSlack = function errorToSlack(message){
-    this.slack.webhook({
-        channel: "#fay-errors",
-        username: "Fay",
-        text: message
-    }, function(err, response){
-        console.log(response);
+Botsan.prototype.sendNotification = function sendNotification(message, error) {
+    var channel = "245289486295105546";
+    if (error) {
+        channel = "245572944598794240";
+    }
+    var discord = this.discord;
+    var operation = this.retry.operation({retries: 2, minTimeout: 3000});
+    operation.attempt(function (currentAttempt) {
+        console.log(channel);
+        discord.sendMessage({
+            to: channel,
+            message: message
+        }, function (err) {
+            if (operation.retry(err)) {
+                return;
+            }
+        });
     });
-}
-Botsan.prototype.sendNotification = function errorToSlack(message){
-    this.slack.webhook({
-        channel: "#managers",
-        username: "Fay",
-        text: message
-    }, function(err, response){
-        console.log(response);
-    });
+
+
 }
 
-Botsan.prototype.saveUsers = function saveUsers(users){
+Botsan.prototype.saveUsers = function saveUsers(users) {
     this.fs.writeFile("./users.json", JSON.stringify(users, null, 4), function (err) {
         if (err) {
             throw err;
@@ -421,9 +434,9 @@ Botsan.prototype.saveUsers = function saveUsers(users){
     });
 }
 
-Botsan.prototype.getAnimeById = function getAnimeById(id){
+Botsan.prototype.getAnimeById = function getAnimeById(id) {
     for (var key in this.anime_list) {
-        if(this.anime_list[key].uploadsID == id){
+        if (this.anime_list[key].uploadsID == id) {
             return this.anime_list[key];
         }
     }
