@@ -16,7 +16,7 @@ function Control(botsan) {
     if (fs.existsSync("./users.json")) {
         users = JSON.parse(fs.readFileSync('./users.json', 'utf8'));
     } else {
-        botsan.saveUsers();
+        botsan.saveUsers(users);
     }
 
     app.listen(8000);

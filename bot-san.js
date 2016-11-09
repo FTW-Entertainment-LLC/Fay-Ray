@@ -412,7 +412,6 @@ Botsan.prototype.sendNotification = function sendNotification(message, error) {
     var discord = this.discord;
     var operation = this.retry.operation({retries: 2, minTimeout: 3000});
     operation.attempt(function (currentAttempt) {
-        console.log(channel);
         discord.sendMessage({
             to: channel,
             message: message
