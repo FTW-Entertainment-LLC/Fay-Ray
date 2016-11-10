@@ -2,7 +2,7 @@
  * Created by Enic on 2016-11-05.
  */
 var assert = require('assert');
-var bsan = require('../bot-san.js');
+var bsan = require('../includes/bot-san.js');
 var botsan = new bsan();
 
 describe('Module Bot-san', function() {

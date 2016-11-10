@@ -1,4 +1,4 @@
-var bsan = require('./bot-san.js');
+var bsan = require('./includes/bot-san.js');
 var botsan = new bsan();
 botsan.startConsole();
 

@@ -1,4 +1,4 @@
-var bsan = require('./bot-san.js');
+var bsan = require('./includes/bot-san.js');
 var Client  = require('scp2').Client;
 var botsan = new bsan();
 botsan.writeData();

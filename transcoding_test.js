@@ -1,8 +1,8 @@
 /**
  * Created by Enic on 2016-11-03.
  */
-var Transcoder = require('./Transcoder.js');
-var Botsan = require('./bot-san.js');
+var Transcoder = require('./includes/transcoder.js');
+var Botsan = require('./includes/bot-san.js');
 var botsan = new Botsan();
 var Transcoder = new Transcoder(botsan);
 
