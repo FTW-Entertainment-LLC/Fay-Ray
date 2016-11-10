@@ -405,6 +405,9 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
 }
 
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
+    if(!this.config.NOTIFICATIONS){
+        return;
+    }
     var channel = "245289486295105546";
     if (error) {
         channel = "245572944598794240";
