@@ -6,14 +6,6 @@ botsan.startConsole();
 
 var DEBUG = false;
 
-var anime_list = [];
-if (botsan.fs.existsSync(botsan.path.normalize("./savefile.json"))) {
-    try {
-        anime_list = JSON.parse(botsan.fs.readFileSync('./savefile.json', 'utf8'));
-    } catch (e) {
-        botsan.logError(e);
-    }
-}
 
 var downloaded_list = [];
 if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
@@ -110,14 +102,17 @@ function processRaysDownloads(){
             var myanime = botsan.getAnimeById(download.uploadsID);
             if(myanime==null){
                 anime.finished_episodes = [];
-                anime_list.push(anime);
+                botsan.anime_list.push(anime);
                 myanime = anime;
-                botsan.saveSettings(anime_list);
+                botsan.saveSettings(botsan.anime_list);
             }
-            if (botsan.getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
-                //Don't continue if this episode has already been uploaded.
-                return;
+            if(botsan.getAnimeById(download.uploadsID)){
+                if (botsan.getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
+                    //Don't continue if this episode has already been uploaded.
+                    return;
+                }
             }
+
             var episode = new botsan.Episode(download.filename, null, download.episodeno, myanime);
             in_download_queue.push(episode.title);
             download_queue.push({ download: download, episode: episode}, episode.episodeno, function () {
@@ -143,9 +138,9 @@ function processDownloads(){
             var myanime = botsan.getAnimeById(download.uploadsID);
             if(myanime==null){
                 anime.finished_episodes = [];
-                anime_list.push(anime);
+                botsan.anime_list.push(anime);
                 myanime = anime;
-                botsan.saveSettings(anime_list);
+                botsan.saveSettings(botsan.anime_list);
             }
             if (myanime.finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
                 //Don't continue if this episode has already been uploaded.
@@ -459,7 +454,7 @@ function upload_file(uplObj, callback) {
             botsan.sendNotification(`${uplObj.Episode.parent.title} #${uplObj.Episode.episodeno} was uploaded to Zeus`);
             uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
             uplObj.Episode.parent.finished_episodes.sort(function(a, b){return a - b});
-            botsan.saveSettings(anime_list);
+            botsan.saveSettings(botsan.anime_list);
             setTimeout(function(){
                 botsan.clearData(uplObj.Episode);
             }, 3600000); //Clear after 1 hour

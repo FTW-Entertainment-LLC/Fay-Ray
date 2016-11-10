@@ -44,12 +44,6 @@ function Botsan() {
 
     this.loadSettings();
 
-    if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
-        this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
-    } else {
-        console.error("No config.ini file found!");
-    }
-
 
     this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
     if (!this.fs.existsSync(this.config.paths.downloads)) {
@@ -339,6 +333,11 @@ Botsan.prototype.loadSettings = function loadSettings() {
         } catch (e) {
             this.logError(e);
         }
+    }
+    if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
+        this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
+    } else {
+        console.error("No config.ini file found!");
     }
 }
 
