@@ -45,4 +45,13 @@ describe('Module Bot-san', function() {
         });
     });
 
+    describe('sendNotification()', function() {
+        it('should return false when config is set to false', function(){
+            assert.equal(botsan.sendNotification("Test"), false);
+        });
+
+    });
+
+
+
 });

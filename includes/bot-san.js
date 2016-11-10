@@ -44,25 +44,6 @@ function Botsan() {
 
     this.loadSettings();
 
-
-    this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
-    if (!this.fs.existsSync(this.config.paths.downloads)) {
-        this.fs.mkdirSync(this.config.paths.downloads);
-    }
-    this.config.paths.temp = this.path.normalize(this.config.paths.temp)
-    if (!this.fs.existsSync(this.config.paths.temp)) {
-        this.fs.mkdirSync(this.config.paths.temp);
-    }
-    if (!this.fs.existsSync('./rays_data')) {
-        this.fs.mkdirSync('./rays_data');
-    }
-
-    this.config.paths.outputfolder = this.path.normalize(this.config.paths.outputfolder)
-    if (!this.fs.existsSync(this.config.paths.outputfolder)) {
-        this.fs.mkdirSync(this.config.paths.outputfolder);
-    }
-
-
     var ctrl = require('./control.js');
     var control = new ctrl(this);
 }
@@ -339,6 +320,22 @@ Botsan.prototype.loadSettings = function loadSettings() {
     } else {
         console.error("No config.ini file found!");
     }
+    this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
+    if (!this.fs.existsSync(this.config.paths.downloads)) {
+        this.fs.mkdirSync(this.config.paths.downloads);
+    }
+    this.config.paths.temp = this.path.normalize(this.config.paths.temp)
+    if (!this.fs.existsSync(this.config.paths.temp)) {
+        this.fs.mkdirSync(this.config.paths.temp);
+    }
+    if (!this.fs.existsSync('./rays_data')) {
+        this.fs.mkdirSync('./rays_data');
+    }
+
+    this.config.paths.outputfolder = this.path.normalize(this.config.paths.outputfolder)
+    if (!this.fs.existsSync(this.config.paths.outputfolder)) {
+        this.fs.mkdirSync(this.config.paths.outputfolder);
+    }
 }
 
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
@@ -405,7 +402,7 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
 
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
     if(!this.config.settings.NOTIFICATIONS){
-        return;
+        return false;
     }
     var channel = "245289486295105546";
     if (error) {
@@ -421,6 +418,7 @@ Botsan.prototype.sendNotification = function sendNotification(message, error) {
             if (operation.retry(err)) {
                 return;
             }
+            return true;
         });
     });
 
