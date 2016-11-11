@@ -77,6 +77,9 @@ function Control(botsan) {
                         var vrified = false;
                         var user = users[i];
                         password(formData.password).verifyAgainst(user.hash, function (error, verified) {
+                            if(!verified){
+                                return;
+                            }
                             delete formData.password;
                             vrified = verified;
                             if (error) {
