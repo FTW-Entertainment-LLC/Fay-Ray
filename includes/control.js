@@ -66,6 +66,7 @@ function Control(botsan) {
                     if (requestBody.length > 1e7) {
                         response.writeHead(413, 'Request Entity Too Large', {'Content-Type': 'text/html'});
                         response.end('<!doctype html><html><head><title>413</title></head><body>413: Request Entity Too Large</body></html>');
+                        return;
                     }
                 });
                 request.on('end', function () {

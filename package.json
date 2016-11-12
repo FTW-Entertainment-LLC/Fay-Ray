@@ -20,8 +20,8 @@
     "node-json2html": "^1.1.1",
     "password-hash-and-salt": "^0.1.4",
     "retry": "^0.10.0",
-    "scp2": "^0.4.0",
     "socket.io": "^1.5.1",
+    "ssh2": "^0.5.4",
     "webtorrent": "^0.95.6"
   },
   "devDependencies": {

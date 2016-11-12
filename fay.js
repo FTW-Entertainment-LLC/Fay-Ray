@@ -1,5 +1,4 @@
 var bsan = require('./includes/bot-san.js');
-var Client  = require('scp2').Client;
 var botsan = new bsan();
 botsan.writeData();
 botsan.startConsole();
@@ -18,7 +17,7 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
 }
 
 //Downloads are in a priority queue, with episode number as a priority. Downloads with lower 
-var download_queue = botsan.async.priorityQueue(scpDownload, botsan.config.settings.SIMULTANEOUS_SCP);
+var download_queue = botsan.async.priorityQueue(sftpDownload, botsan.config.settings.SIMULTANEOUS_SCP);
 var in_download_queue = [];
 
 //Encodes are in a priority queue, with episode number as a priority. Encodes with lower 
@@ -53,30 +52,22 @@ function startQueue() {
 function checkDownloads(){
     botsan.updateAppData({ message: "Fay: Checking downloads on seedbox... ", id: -1 });
 
-    var scpClient = new Client(scpDefaults);
+    var Client = require('ssh2').Client;
+    var conn = new Client();
+    conn.on('ready', function() {
+        conn.sftp(function(err, sftp) {
+            if (err)
+                botsan.logError(err);
+            sftp.fastGet(`${botsan.config.paths.seedbox}/downloaded.json`, './rays_data/downloaded.json',function(err){
+                if(err)
+                    botsan.logError(err);
+                botsan.updateAppData({ message: "Fay: Got downloads data from Ray", id: -1 });
+                conn.end();
+                processRaysDownloads();
 
-    scpClient.on('error', function (err) {
-        console.log(err);
-        botsan.logError(err);
-    });
-
-    scpClient.on('connect', function () {
-        botsan.updateAppData({ message: "Data scp client status: Connected", id: -2 });
-    });
-    scpClient.on('close', function () {
-        botsan.updateAppData({ message: "Data scp client status: Disconnected", id: -2 });
-    });
-
-    scpClient.download(botsan.config.paths.seedbox+'/downloaded.json', './rays_data/downloaded.json', function(){
-        botsan.updateAppData({ message: "Fay: Got downloads data from Ray", id: -1 });
-        scpClient.download(botsan.config.paths.seedbox+'/savefile.json', './rays_data/ray_savefile.json', function(){
-            botsan.updateAppData({ message: "Fay: Got downloads and savefile data from Ray", id: -1 });
-            scpClient.close();
-            processRaysDownloads();
+            });
         });
-    });
-
-
+    }).connect(scpDefaults);
 }
 
 //Processes the /rays_data/downloaded.json file
@@ -170,39 +161,29 @@ function getSavefileDataById(id){
     return null;
 }
 
-function scpDownload(object, callback){
-    botsan.updateData({ Episode: object.episode, Status: "Starting Download", Progress: 0 });
-
-    var privScpClient = new Client(scpDefaults);
-
-    privScpClient.download(botsan.config.paths.seedbox+'/torrents/'+object.download.filename, botsan.config.paths.downloads+'/'+object.download.filename, function(){
-        botsan.updateData({ Episode: object.episode, Status: "Download complete", Progress: 0 });
-        var downloadedObj = new botsan.downloaded(object.episode.parent.uploadsID, object.download.filename, object.episode.episodeno);
-        downloaded_list.push(downloadedObj);
-        privScpClient.close();
-        //Last procedure, send callback in to the write download function.
-        //If this is ever changed, move callback to right place.
-        botsan.writeDownloads(downloaded_list, callback);
-
-        onDoneDownloading(object.episode);
-
-    });
-
-    //TODO: Track progress when scp adds support for it.
-    //Or just switch to SFTP, this scp library is really slow..
-    /*privScpClient.on('transfer', function (bytes, total) {
-        botsan.updateData({ Episode: object.episode, Status: "Downloading", Progress: ((bytes/total) * 100).toFixed(2) })
-    });*/
-
-    privScpClient.on('connect', function () {
-        botsan.updateData({ Episode: object.episode, Status: "Downloading ", Progress: 0 })
-    });
-
-    privScpClient.on('error', function (err) {
-        console.log(err);
-        botsan.logError(err);
-    });
-
+function sftpDownload(object, callback){
+    var Client = require('ssh2').Client;
+    var conn = new Client();
+    conn.on('ready', function() {
+        console.log('Client :: ready');
+        conn.sftp(function(err, sftp) {
+            if (err)
+                botsan.logError(err);
+            botsan.updateData({ Episode: object.episode, Status: "Downloading ", Progress: 0 })
+            sftp.fastGet(`${botsan.config.paths.seedbox}/torrents/${object.download.filename}`, `${botsan.config.paths.downloads}/${object.download.filename}`, {step: function(total_transferred, chunk, total){
+                botsan.updateData({ Episode: object.episode, Status: "Downloading", Progress: Math.floor((total_transferred/total*100)*10)/10 })
+            }},function(err){
+                if(err)
+                    botsan.logError(err);
+                botsan.updateData({ Episode: object.episode, Status: "Download complete", Progress: 0 });
+                var downloadedObj = new botsan.downloaded(object.episode.parent.uploadsID, object.download.filename, object.episode.episodeno);
+                downloaded_list.push(downloadedObj);
+                conn.end();
+                botsan.writeDownloads(downloaded_list, callback);
+                onDoneDownloading(object.episode);
+            });
+        });
+    }).connect(scpDefaults);
 
 }
 
@@ -451,7 +432,7 @@ function upload_file(uplObj, callback) {
 
         //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded. TODO
         if(uplObj.quality == uplObj.Episode.parent.quality){
-            botsan.sendNotification(`${uplObj.Episode.parent.title} #${uplObj.Episode.episodeno} was uploaded to Zeus`);
+            botsan.sendNotification(`@everyone ${uplObj.Episode.parent.title} #${uplObj.Episode.episodeno} was uploaded to Zeus`);
             uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
             uplObj.Episode.parent.finished_episodes.sort(function(a, b){return a - b});
             botsan.saveSettings(botsan.anime_list);

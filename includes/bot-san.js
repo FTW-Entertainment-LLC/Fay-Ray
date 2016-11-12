@@ -44,8 +44,8 @@ function Botsan() {
 
     this.loadSettings();
 
-    var ctrl = require('./control.js');
-    var control = new ctrl(this);
+    var Control = require('./control.js');
+    var control = new Control(this);
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
@@ -76,6 +76,8 @@ Botsan.prototype.downloaded = function downloaded(uploadsID, filename, episodeno
     this.filename = filename; //Filename
     this.episodeno = episodeno; //Episode number
 };
+
+//TODO: Check if this is used? Otherwise remove. Looks like old code that's remained.
 Botsan.prototype.transcode = function transcode(uploadsID, filename, episodeno, quality) {
     this.uploadsID = uploadsID; //Uploads board ID, all series are identified by this number.
     //For more info this can be matched from the anime object.
@@ -130,7 +132,7 @@ Botsan.prototype.updateData = function updateData(Obj) {
     var correctEpisode = null;
     this.episode_status.forEach(function (i) {
         if (correctEpisode != null)
-            return;
+            return false;
 
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
@@ -152,6 +154,7 @@ Botsan.prototype.updateData = function updateData(Obj) {
         this.episode_status.sort(this.compareEpisodeData);
     }
     this.writeData();
+    return true;
 }
 
 Botsan.prototype.clearData = function clearData(Obj) {
