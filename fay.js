@@ -61,9 +61,14 @@ function checkDownloads(){
             sftp.fastGet(`${botsan.config.paths.seedbox}/downloaded.json`, './rays_data/downloaded.json',function(err){
                 if(err)
                     botsan.logError(err);
-                botsan.updateAppData({ message: "Fay: Got downloads data from Ray", id: -1 });
-                conn.end();
-                processRaysDownloads();
+                sftp.fastGet(`${botsan.config.paths.seedbox}/savefile.json`, './rays_data/ray_savefile.json',function(err){
+                    if(err)
+                        botsan.logError(err);
+                    botsan.updateAppData({ message: "Fay: Got downloads data from Ray", id: -1 });
+                    conn.end();
+                    processRaysDownloads();
+
+                });
 
             });
         });
