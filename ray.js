@@ -37,71 +37,76 @@ startQueue();
 var minutes = 30, the_interval = minutes * 60 * 1000;
 setInterval(startQueue, the_interval);
 
+function checkNyaa(series, callback){
+    var FeedParser = require('feedparser')
+        , request = require('request');
+    var req = request(nyaaUrl(series.nyaasearch, series.nyaauser))
+        , feedparser = new FeedParser();
 
-function checkNyaa(series, callback) {
-    var nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
-    if(botsan.feed.identify(nyaaurl)){
-        //TODO: Retry a few times, max 3 reattempts.
-        callback();
-        return;
-    }
-    botsan.feed(nyaaurl, function (err, articles) {
+    req.on('error', function (error) {
+        botsan.logError(error);
+    });
 
-        if (err) {
-            console.log(err);
-            botsan.logError(err);
-        }
+    req.on('response', function (res) {
+        var stream = this;
 
-        var found = 0;
-        if (articles) {
-            articles.reverse(); //Reverse the list, so we get the first episodes before the last.
-            articles.forEach(function (article) {
-                var pattern = new RegExp(series.regex);
-                if (!new RegExp(pattern).test(article.title)) {
-                    botsan.updateAppData({ message: "Bot-san: Regex pattern is invalid for: " + series.title, id: series.uploadsID });
-                }
-                var result = article.title.match(pattern);
+        if (res.statusCode != 200) return this.emit('error', new Error('Bad status code'));
 
-                if (result == null) {
-                    return;
-                }
+        stream.pipe(feedparser);
+    });
 
-                if (series.finished_episodes.indexOf(parseInt(result[1], 10 /*base 10*/)) != -1) {
-                    //Don't continue if this episode has already been uploaded.
-                    return;
-                }
 
-                if (in_torrent_queue.indexOf(article.link) >= 0 || current_downloaded_articles.indexOf(article.link) >= 0) {
-                    //Don't continue if the episode is in any of the above lists.
-                    //In torrent queue are the torrents waiting to be downloaded, while current_downloaded_articles are all torrents that has been downloaded since the process started
-                    return;
-                }
+    feedparser.on('error', function(error) {
+        logError(error);
+    });
+    var found = 0;
+    feedparser.on('readable', function() {
+        // This is where the action is!
+        var stream = this
+            , meta = this.meta // **NOTE** the "meta" is always available in the context of the feedparser instance
+            , article;
 
-                found++;
-                var e = new botsan.Episode(article.title, article.link, parseInt(result[1]), series); //Parse the episode number to a integer.
+        while (article = stream.read()) {
+            var pattern = new RegExp(series.regex);
+            if (!new RegExp(pattern).test(article.title)) {
+                botsan.updateAppData({ message: "Ray: Regex pattern is invalid for: " + series.title, id: series.uploadsID });
+                return;
+            }
+            var result = article.title.match(pattern);
+            if (result == null) {
+                return;
+            }
+            if (series.finished_episodes.indexOf(parseInt(result[1], 10 /*base 10*/)) != -1) {
+                //Don't continue if this episode has already been uploaded.
+                return;
+            }
+            if (in_torrent_queue.indexOf(article.link) >= 0 || current_downloaded_articles.indexOf(article.link) >= 0) {
+                //Don't continue if the episode is in any of the above lists.
+                //In torrent queue are the torrents waiting to be downloaded, while current_downloaded_articles are all torrents that has been downloaded since the process started
+                return;
+            }
 
-                botsan.updateData({ Episode: e, Status: "In Torrent Queue", Progress: 0 });
+            found++;
 
-                in_torrent_queue.push(e.torrenturl);
-                torrent_queue.push(e, function () {
-                    //Remove the episode from the in_queue when done.
-                    in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
-                });
+            var e = new botsan.Episode(article.title, article.link, parseInt(result[1]), series); //Parse the episode number to a integer.
 
+            botsan.updateData({ Episode: e, Status: "In Torrent Queue", Progress: 0 });
+
+            in_torrent_queue.push(e.torrenturl);
+            torrent_queue.push(e, function () {
+                //Remove the episode from the in_queue when done.
+                in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
             });
             var foundeps = found;
             if (found > 0) {
                 foundeps = botsan.colors.green(found);
             }
             botsan.updateAppData({ message: "Ray: I found " + foundeps + " new episodes for: " + series.title, id: series.uploadsID });
-        } else {
-            botsan.updateAppData({ message: "Ray: I found no artciles for: " + series.title, id: series.uploadsID });
         }
-        callback();
-
     });
-}
+    callback();
 
+}
 
 function startQueue() {
     botsan.nyaa_queue.push(botsan.anime_list);
@@ -132,7 +137,7 @@ function onTorrentAdd(torrent, Episode, callback) {
     });*/
     var finished = false;
     torrent.on('error', function(){
-        console.log(err);
+        //console.log(err);
         botsan.logError(err);
         callback();
     });
@@ -145,7 +150,7 @@ function onTorrentAdd(torrent, Episode, callback) {
 
     torrent.on('done', function (err) {
         if (err) {
-            console.log(err);
+            //console.log(err);
             botsan.logError(err);
         }
         finished = true;
