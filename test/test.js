@@ -4,21 +4,21 @@
 var assert = require('assert');
 var bsan = require('../includes/bot-san.js');
 var botsan = new bsan();
-
+var anime = new botsan.anime("Love Live! Sunshine!!", "lovelivesunshine", "\\[FFF\\] Love Live! Sunshine!! - (\\d{2})(?:v\\d)?.*.mkv", "Love+Live%21+Sunshine%21%21", 73859, 2570, 720, [2,3,4]);
+var ep = new botsan.Episode("Title", "https://www.nyaa.se/?page=download&tid=867606", 1,  anime);
 describe('Module Bot-san', function() {
 
     describe('Episode()', function() {
         it('should return a episode object with a Title, Episode number, torrent url and a parent reference', function() {
-            var ep = new botsan.Episode("Title", "https://www.nyaa.se/?page=download&tid=867606", 1,  null);
+
             assert.equal(ep.title, "Title");
             assert.equal(ep.episodeno, 1);
             assert.equal(ep.torrenturl, "https://www.nyaa.se/?page=download&tid=867606");
-            assert.equal(ep.parent, null);
+            assert.equal(ep.parent, anime);
         });
     });
     describe('Anime()', function() {
         it('should return a anime object with a Title, prefix, regex, nyaasearch, nyaauser, uploadsID, quality, array of finished episodes', function() {
-            var anime = new botsan.anime("Love Live! Sunshine!!", "lovelivesunshine", "\\[FFF\\] Love Live! Sunshine!! - (\\d{2})(?:v\\d)?.*.mkv", "Love+Live%21+Sunshine%21%21", 73859, 2570, 720, [2,3,4]);
             assert.equal(anime.title, "Love Live! Sunshine!!");
             assert.equal(anime.prefix, "lovelivesunshine");
             assert.equal(anime.regex, "\\[FFF\\] Love Live! Sunshine!! - (\\d{2})(?:v\\d)?.*.mkv");
@@ -46,8 +46,16 @@ describe('Module Bot-san', function() {
     });
 
     describe('sendNotification()', function() {
-        it('should return false when config is set to false', function(){
+        it('should return false when config NOTIFICATIONS is set to false', function(){
             assert.equal(botsan.sendNotification("Test"), false);
+        });
+
+    });
+
+    describe('updateData()', function() {
+        it('should return false when there\'s no status', function(){
+            botsan.last_refresh = new Date().getTime(); //Don't console.log
+            assert.equal(botsan.updateData({ Episode: ep, Status: "In Torrent Queue", Progress: 0 }), false);
         });
 
     });

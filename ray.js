@@ -56,7 +56,7 @@ function checkNyaa(series, callback){
 
 
     feedparser.on('error', function(error) {
-        logError(error);
+        botsan.logError(error);
     });
     var found = 0;
     feedparser.on('readable', function() {
