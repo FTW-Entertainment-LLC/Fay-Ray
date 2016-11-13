@@ -38,10 +38,9 @@ var minutes = 30, the_interval = minutes * 60 * 1000;
 setInterval(startQueue, the_interval);
 
 function checkNyaa(series, callback){
-    var FeedParser = require('feedparser')
-        , request = require('request');
-    var req = request(nyaaUrl(series.nyaasearch, series.nyaauser))
-        , feedparser = new FeedParser();
+
+    var req = botsan.request(nyaaUrl(series.nyaasearch, series.nyaauser))
+        , feedparser = new botsan.FeedParser();
 
     req.on('error', function (error) {
         botsan.logError(error);

@@ -1,6 +1,7 @@
 function Botsan() {
     "use strict";
-    this.feed = require("feed-read");
+    this.FeedParser = require('feedparser')
+    this.request = require('request');
     this.async = require('async');
     this.WebTorrent = require('webtorrent');
     this.fs = require('fs');
