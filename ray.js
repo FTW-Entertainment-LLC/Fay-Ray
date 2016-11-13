@@ -38,8 +38,8 @@ var minutes = 30, the_interval = minutes * 60 * 1000;
 setInterval(startQueue, the_interval);
 
 function checkNyaa(series, callback){
-
-    var req = botsan.request(nyaaUrl(series.nyaasearch, series.nyaauser))
+    var nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
+    var req = botsan.request(nyaaurl)
         , feedparser = new botsan.FeedParser();
 
     req.on('error', function (error) {
@@ -68,7 +68,6 @@ function checkNyaa(series, callback){
         while (article = stream.read()) {
             var pattern = new RegExp(series.regex);
             if (!new RegExp(pattern).test(article.title)) {
-                botsan.updateAppData({ message: "Ray: Regex pattern is invalid for: " + series.title, id: series.uploadsID });
                 return;
             }
             var result = article.title.match(pattern);
@@ -103,6 +102,9 @@ function checkNyaa(series, callback){
             botsan.updateAppData({ message: "Ray: I found " + foundeps + " new episodes for: " + series.title, id: series.uploadsID });
         }
     });
+    if(found==0){
+        botsan.updateAppData({ message: "Ray: I found 0 new episodes for: " + series.title, id: series.uploadsID });
+    }
     callback();
 
 }
