@@ -1,7 +1,8 @@
 var bsan = require('./includes/bot-san.js');
-var botsan = new bsan();
+var botsan = new bsan(true);
 botsan.startConsole();
-
+var socketiohttp = require('http').createServer().listen(8888, '0.0.0.0');
+var io = require('socket.io').listen(socketiohttp);
 
 var config;
 if (botsan.fs.existsSync(botsan.path.normalize("./config.ini"))) {
@@ -210,3 +211,20 @@ function onDoneDownloading(file, Episode, callback) {
         }, 3600000); //Clear after 1 hour
     });
 }
+function showConnections(){
+    for(var i=0;i<io.engine.clientsCount;i++){
+        console.log(io.engine.clients[i]);
+    }
+}
+
+io.on('connection', function (socket) {
+    showConnections()
+    socket.emit('news', { hello: 'world' });
+    socket.on('my other event', function (data) {
+        console.log(data);
+    });
+    socket.on('disconnect', function() {
+        sockets_conntected--;
+        showConnections()
+    });
+});

@@ -164,6 +164,7 @@ function Control(botsan) {
     }
 
     io.on('connection', function (socket) {
+
         botsan.myEmitter.on('writeData', () => {
             socket.emit('news', {application_status: botsan.application_status, episode_status: botsan.episode_status});
         });
