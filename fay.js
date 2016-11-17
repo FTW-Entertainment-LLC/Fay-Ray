@@ -1,6 +1,6 @@
 var bsan = require('./includes/bot-san.js');
 var botsan = new bsan(false);
-var socket = require('socket.io-client')('http://localhost:8888/my-name', {reconnectionDelay: 100});
+var socket = require('socket.io-client')(`${botsan.config.connection.address}:8888`, {reconnectionDelay: botsan.config.connection.reconnection_delay});
 botsan.writeData();
 botsan.startConsole();
 
@@ -487,10 +487,8 @@ socket.on('reconnect_attempt', function(num){
 });
 socket.on('connect', function(){
     botsan.updateAppData({message: "Connected to Ray", id: -2});
+    socket.emit('identification', { name: botsan.config.settings.name });
 
-});
-socket.on('news', function(data){
-    botsan.updateAppData({message: data, id: -3});
 });
 socket.on('disconnect', function(){
     botsan.updateAppData({message: "Disconnected from Ray", id: -2});

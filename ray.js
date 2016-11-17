@@ -211,20 +211,26 @@ function onDoneDownloading(file, Episode, callback) {
         }, 3600000); //Clear after 1 hour
     });
 }
-function showConnections(){
-    for(var i=0;i<io.engine.clientsCount;i++){
-        console.log(io.engine.clients[i]);
-    }
-}
 
+var connected_nodes = [];
+function showConnections(){
+    var string = "";
+    for(var i=0;i<connected_nodes.length;i++){
+        string += connected_nodes[i].name + ", ";
+    }
+    botsan.updateAppData({ message: "Ray: Connected nodes: " + string, id: -1 });
+}
+//{name: "node1"}
 io.on('connection', function (socket) {
-    showConnections()
     socket.emit('news', { hello: 'world' });
-    socket.on('my other event', function (data) {
-        console.log(data);
+    var obj = null;
+    socket.on('identification', function (data) {
+        obj = data;
+        connected_nodes.push(obj);
+        showConnections();
     });
     socket.on('disconnect', function() {
-        sockets_conntected--;
-        showConnections()
+        connected_nodes.splice(connected_nodes.indexOf(obj), 1);
+        showConnections();
     });
 });
