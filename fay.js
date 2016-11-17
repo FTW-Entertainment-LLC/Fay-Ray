@@ -1,5 +1,6 @@
 var bsan = require('./includes/bot-san.js');
-var botsan = new bsan();
+var botsan = new bsan(false);
+var socket = require('socket.io-client')(`${botsan.config.connection.address}:8888`, {reconnectionDelay: botsan.config.connection.reconnection_delay});
 botsan.writeData();
 botsan.startConsole();
 
@@ -475,3 +476,20 @@ function uploadOp(uplObj, FTPc) {
         });
     });
 }
+
+
+
+socket.on('connect_timeout', function(){
+    botsan.updateAppData({message: "Couldn't connect to Ray", id: -2});
+});
+socket.on('reconnect_attempt', function(num){
+    botsan.updateAppData({message: `Reconnecting attempt ${num}`, id: -2});
+});
+socket.on('connect', function(){
+    botsan.updateAppData({message: "Connected to Ray", id: -2});
+    socket.emit('identification', { name: botsan.config.settings.name });
+
+});
+socket.on('disconnect', function(){
+    botsan.updateAppData({message: "Disconnected from Ray", id: -2});
+});

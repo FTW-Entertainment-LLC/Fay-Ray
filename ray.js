@@ -1,7 +1,8 @@
 var bsan = require('./includes/bot-san.js');
-var botsan = new bsan();
+var botsan = new bsan(true);
 botsan.startConsole();
-
+var socketiohttp = require('http').createServer().listen(8888, '0.0.0.0');
+var io = require('socket.io').listen(socketiohttp);
 
 var config;
 if (botsan.fs.existsSync(botsan.path.normalize("./config.ini"))) {
@@ -210,3 +211,26 @@ function onDoneDownloading(file, Episode, callback) {
         }, 3600000); //Clear after 1 hour
     });
 }
+
+var connected_nodes = [];
+function showConnections(){
+    var string = "";
+    for(var i=0;i<connected_nodes.length;i++){
+        string += connected_nodes[i].name + ", ";
+    }
+    botsan.updateAppData({ message: "Ray: Connected nodes: " + string, id: -1 });
+}
+//{name: "node1"}
+io.on('connection', function (socket) {
+    socket.emit('news', { hello: 'world' });
+    var obj = null;
+    socket.on('identification', function (data) {
+        obj = data;
+        connected_nodes.push(obj);
+        showConnections();
+    });
+    socket.on('disconnect', function() {
+        connected_nodes.splice(connected_nodes.indexOf(obj), 1);
+        showConnections();
+    });
+});

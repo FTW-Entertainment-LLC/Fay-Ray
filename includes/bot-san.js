@@ -1,4 +1,4 @@
-function Botsan() {
+function Botsan(host) {
     "use strict";
     this.FeedParser = require('feedparser')
     this.request = require('request');
@@ -17,6 +17,7 @@ function Botsan() {
     this.date = new Date();
     this.tclient = new this.WebTorrent();
     this.nyaa_queue = null;
+    this.host = host;
 
     const EventEmitter = require('events');
     class MyEmitter extends EventEmitter {
@@ -46,7 +47,10 @@ function Botsan() {
     this.loadSettings();
 
     var Control = require('./control.js');
-    var control = new Control(this);
+    var control = null;
+    if(host){
+        control = new Control(this);
+    }
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
