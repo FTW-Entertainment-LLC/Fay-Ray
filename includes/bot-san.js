@@ -233,12 +233,15 @@ Botsan.prototype.writeData = function writeData() {
         if (i.Status == "Downloading" || i.Status == "Starting Download") {
             showprogress = "(" + i.Progress + "%)";
         }
+        var ep = "";
+        if(i.Episode.episodeno)
+            ep = i.Episode.episodeno;
         if (Array.isArray(i.Status)) {
             i.Status.forEach(function (i2) {
-                console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i2, showprogress);
+                console.log(i.Episode.parent.title, ep, "-", i2, showprogress);
             });
         } else {
-            console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
+            console.log(i.Episode.parent.title, ep, "-", i.Status, showprogress);
         }
 
 
