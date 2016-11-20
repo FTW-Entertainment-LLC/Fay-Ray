@@ -106,14 +106,22 @@ function Control(botsan) {
                                     missing = true;
                                     response.write('Missing regex!<br>');
                                 }
-                                if (!formData.nyaasearch) {
+                                if(!formData.torrenturl && !formData.nyaasearch && !formData.nyaauser){
+                                    missing = true;
+                                    response.write('Missing torrenturl search!<br>');
+                                    response.write('or missing nyaa search and missing nyaa user id!<br>');
+                                }
+
+                                if (!formData.torrenturl && !formData.nyaasearch) {
                                     missing = true;
                                     response.write('Missing nyaa search!<br>');
                                 }
-                                if (!formData.nyaauser) {
+                                if (!formData.torrenturl && !formData.nyaauser) {
                                     missing = true;
                                     response.write('Missing nyaa user id!<br>');
                                 }
+
+
                                 if (!formData.uploadsID) {
                                     missing = true;
                                     response.write('Missing uploads ID!<br>');
@@ -139,11 +147,8 @@ function Control(botsan) {
                                     } else {
                                         response.write('Series is already in the list');
                                     }
-
-                                    response.end('</body></html>');
-
-
                                 }
+                                response.end('</body></html>');
 
                             }
                         });
