@@ -1,5 +1,7 @@
 var bsan = require('./includes/bot-san.js');
 var botsan = new bsan(true);
+const readChunk = require('read-chunk'); // npm install read-chunk
+const fileType = require('file-type');
 botsan.startConsole();
 var socketiohttp = require('http').createServer().listen(8888, '0.0.0.0');
 var io = require('socket.io').listen(socketiohttp);
@@ -67,15 +69,15 @@ function checkNyaa(series, callback){
             , article;
 
         while (article = stream.read()) {
-            var pattern = new RegExp(series.regex);
-            if (!new RegExp(pattern).test(article.title)) {
+
+            var episode_number = getEpisodeByRegex(series, article.title);
+
+            if(episode_number==null){
+                //No match, quit;
                 return;
             }
-            var result = article.title.match(pattern);
-            if (result == null) {
-                return;
-            }
-            if (series.finished_episodes.indexOf(parseInt(result[1], 10 /*base 10*/)) != -1) {
+
+            if (series.finished_episodes.indexOf(parseInt(episode_number, 10 /*base 10*/)) != -1) {
                 //Don't continue if this episode has already been uploaded.
                 return;
             }
@@ -87,7 +89,7 @@ function checkNyaa(series, callback){
 
             found++;
 
-            var e = new botsan.Episode(article.title, article.link, parseInt(result[1]), series); //Parse the episode number to a integer.
+            var e = new botsan.Episode(article.title, article.link, parseInt(episode_number), series); //Parse the episode number to a integer.
 
             botsan.updateData({ Episode: e, Status: "In Torrent Queue", Progress: 0 });
 
@@ -110,8 +112,33 @@ function checkNyaa(series, callback){
 
 }
 
+function getEpisodeByRegex(series, string){
+    var pattern = new RegExp(series.regex);
+    if (!new RegExp(pattern).test(string)) {
+        return null;
+    }
+    var result = string.match(pattern);
+    if (result == null) {
+        return null;
+    }
+    return result[1]; //First group
+}
+
 function startQueue() {
-    botsan.nyaa_queue.push(botsan.anime_list);
+    for(var i = 0; i<botsan.anime_list.length;i++){
+        if(!botsan.anime_list[i].torrenturl){
+            botsan.nyaa_queue.push(botsan.anime_list[i]);
+        } else {
+            if(botsan.anime_list[i].finished)
+                continue;
+            var e = new botsan.Episode(null, botsan.anime_list[i].torrenturl, null, botsan.anime_list[i]); //Parse the episode number to a integer.
+            in_torrent_queue.push(e.torrenturl);
+            torrent_queue.push(e, function () {
+                //Remove the episode from the in_queue when done.
+                in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
+            });
+        }
+    }
 }
 
 function nyaaUrl(search, user) {
@@ -156,10 +183,46 @@ function onTorrentAdd(torrent, Episode, callback) {
             botsan.logError(err);
         }
         finished = true;
-        torrent.files.forEach(function (file) {
+        var last_episode = null;
+        for(var i=0;i<torrent.files.length;i++){
             //Todo: Add only video files
-            onDoneDownloading(file, Episode, callback);
-        });
+            const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.torrentfolder}/${torrent.files[i].path}`), 0, 262);
+            const filetype = fileType(buffer);
+            if(filetype.mime.substring(0, 5)!="video"){
+                continue;
+            }
+
+            var thisEp = Episode;
+            if(Episode.parent.torrenturl){
+                //If it's a batch torrent identified by torrenturl in the anime object, then we only send the files that match the regex.
+                var ep_num = getEpisodeByRegex(Episode.parent, torrent.files[i].name);
+                if(!ep_num)
+                    continue;
+                if (Episode.parent.finished_episodes.indexOf(parseInt(ep_num, 10 /*base 10*/)) != -1) {
+                    //Don't continue if this episode has already been uploaded.
+                    continue;
+                }
+                //null torrenturl because we don't want to ID the episodes by torrenturl which is done in some functions.
+                //If there's no torrenturl, then it's identified by the episode title
+                thisEp = new botsan.Episode(torrent.files[i].path, null, parseInt(ep_num), Episode.parent);
+                last_episode = thisEp.title;
+
+
+            }
+
+            onDoneDownloading(torrent.files[i], thisEp, function(file){
+                if(last_episode==file.path){
+                    if(Episode.parent.torrenturl) {
+                        Episode.parent.finished = true;
+                        botsan.saveSettings(botsan.anime_list);
+                    }
+                    callback();
+                }
+
+            });
+        }
+
+        botsan.clearData(Episode);
 
         //Todo:
         //Gather knowledge on webtorrent to know if removing a torrent from the client is necessary
@@ -182,7 +245,7 @@ function onDoneDownloading(file, Episode, callback) {
             callback();
             throw (err);
         }
-        var downloadedObj = new botsan.downloaded(Episode.parent.uploadsID, file.name, Episode.episodeno);
+        var downloadedObj = new botsan.downloaded(Episode.parent.uploadsID, file.path, Episode.episodeno);
         current_downloaded_articles.push(Episode.torrenturl);
         Episode.parent.finished_episodes.push(Episode.episodeno);
 
@@ -202,13 +265,16 @@ function onDoneDownloading(file, Episode, callback) {
         if(push)
             downloaded_list.push(downloadedObj);
 
-        botsan.writeDownloads(downloaded_list, callback);
-        botsan.saveSettings(botsan.anime_list);
-        botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
+        botsan.writeDownloads(downloaded_list, function(){
+            botsan.saveSettings(botsan.anime_list);
+            botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
 
-        setTimeout(function(){
-            botsan.clearData(Episode);
-        }, 3600000); //Clear after 1 hour
+            setTimeout(function(){
+                botsan.clearData(Episode);
+            }, 3600000); //Clear after 1 hour
+            callback(file);
+        });
+
     });
 }
 
