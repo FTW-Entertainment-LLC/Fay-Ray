@@ -200,22 +200,19 @@ function onDoneDownloading(Episode) {
             botsan.logError(err);
             throw (err);
         }
-        var index = 0;
-        /*Look for the file in the whole torrents folder, then
-         * get the index for it, and send it off to the encode queue */
-        for (index; index < files.length; index++) {
-            if (files[index] == Episode.title) {
-                in_encode_queue.push(Episode.title);
-                encode_queue.push({ Episode: Episode, index: index }, Episode.episodeno, function () {
-                    in_encode_queue.splice(in_encode_queue.indexOf(Episode.title), 1);
-                });
-                botsan.updateData({ Episode: Episode, Status: "In transcoding queue", Progress: 0 });
-                break;
-            }
 
-        }
+        files.sort(localeCompare);
+        var index = files.indexOf(Episode.title);
+        in_encode_queue.push(Episode.title);
+        encode_queue.push({ Episode: Episode, index: index }, Episode.episodeno, function () {
+            in_encode_queue.splice(in_encode_queue.indexOf(Episode.title), 1);
+        });
+        botsan.updateData({ Episode: Episode, Status: "In transcoding queue", Progress: 0 });
     });
 }
+function localeCompare(a,b){
+    return a.localeCompare(b)
+};
 
 //encodeObj
 //episode
