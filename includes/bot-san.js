@@ -13,11 +13,15 @@ function Botsan(host) {
     this.events = require("events");
     this.FClient = require('ftp');
     this.os = require('os');
+    //TODO change to async retry
     this.retry = require('retry');
     this.date = new Date();
     this.tclient = new this.WebTorrent();
     this.nyaa_queue = null;
+    this.torrent_queue = null;
+    this.in_torrent_queue = [];
     this.host = host;
+
 
     const EventEmitter = require('events');
     class MyEmitter extends EventEmitter {
@@ -60,17 +64,23 @@ Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent
     this.parent = parent; //Reference to the anime object.
 };
 
-Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaauser, uploadsID, quality, finished_episodes) {
+
+//TODO: Switch parameters to object so the function is more modular
+Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaauser, uploadsID, quality, finished_episodes, torrenturl) {
     this.title = title; //Anime title
     this.prefix = prefix; //AnimeFTW prefix
     this.regex = regex; //Regex to match the nyaa entries and group episode number.
-    this.nyaasearch = nyaasearch; //Nyaa search field
-    this.nyaauser = nyaauser; //Nyaa user to use search in
     this.uploadsID = uploadsID; // uploads board ID
     this.quality = quality; //Quality for the series to be encoded in. Can be 480, 720 or 1080.
     this.finished_episodes = [];
     if (finished_episodes) {
         this.finished_episodes = finished_episodes;
+    }
+    if(!torrenturl){
+        this.nyaauser = nyaauser; //Nyaa user to use search in
+        this.nyaasearch = nyaasearch; //Nyaa search field
+    }else{
+        this.torrenturl = torrenturl;
     }
 
 };
@@ -131,35 +141,28 @@ Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename) {
 }
 
 Botsan.prototype.updateData = function updateData(Obj) {
-    var index = -1;
+    var found = false;
     var counter;
     Obj.time = new Date().toISOString();
-    var correctEpisode = null;
-    this.episode_status.forEach(function (i) {
-        if (correctEpisode != null)
-            return false;
-
+    for(var i=0; i<this.episode_status.length;i++) {
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
-        if ((Obj.torrenturl == null && i.Episode.title == Obj.Episode.title) ||
-            (Obj.torrenturl != null && i.Episode.torrenturl == Obj.Episode.torrenturl)) {
-            i.Progress = Obj.Progress;
-            i.Status = Obj.Status;
-            index = counter;
-            correctEpisode = i;
+        if ((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.Episode.title) ||
+            (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.Episode.torrenturl)) {
+            this.episode_status[i].Progress = Obj.Progress;
+            this.episode_status[i].Status = Obj.Status;
+            found = true;
+            break;
         }
-
-        counter++;
-    });
+    }
 
 
-    if (index == -1) {
+    if (found == false) {
         this.episode_status.push(Obj);
-
         this.episode_status.sort(this.compareEpisodeData);
     }
     this.writeData();
-    return true;
+    return i;
 }
 
 Botsan.prototype.clearData = function clearData(Obj) {
@@ -311,9 +314,20 @@ Botsan.prototype.logError = function logError(err) {
 Botsan.prototype.addNewSeries = function addNewSeries(series) {
     if (this.getAnimeById(series.uploadsID))
         return false;
+    //TODO: If series has a torrenturl, check all other series if they have a similar torrenturl. If they do, do not allow anime to be added.
 
     this.anime_list.push(series);
-    this.nyaa_queue.push(series);
+    if(!series.torrenturl) {
+        this.nyaa_queue.push(series);
+    } else {
+        var e = new this.Episode(null, series.torrenturl, null, series); //Parse the episode number to a integer.
+        this.in_torrent_queue.push(e.torrenturl);
+        this.torrent_queue.push(e, function () {
+            //Remove the episode from the in_queue when done.
+            this.in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
+        });
+    }
+
     this.saveSettings(this.anime_list);
     return true;
 }

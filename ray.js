@@ -30,8 +30,7 @@ if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
 }
 
 botsan.nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
-var torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.SIMULTANEOUS_DOWNLOADS);
-var in_torrent_queue = [];
+botsan.torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.SIMULTANEOUS_DOWNLOADS);
 var current_downloaded_articles = [];
 
 
@@ -81,7 +80,7 @@ function checkNyaa(series, callback){
                 //Don't continue if this episode has already been uploaded.
                 return;
             }
-            if (in_torrent_queue.indexOf(article.link) >= 0 || current_downloaded_articles.indexOf(article.link) >= 0) {
+            if (botsan.in_torrent_queue.indexOf(article.link) >= 0 || current_downloaded_articles.indexOf(article.link) >= 0) {
                 //Don't continue if the episode is in any of the above lists.
                 //In torrent queue are the torrents waiting to be downloaded, while current_downloaded_articles are all torrents that has been downloaded since the process started
                 return;
@@ -93,10 +92,10 @@ function checkNyaa(series, callback){
 
             botsan.updateData({ Episode: e, Status: "In Torrent Queue", Progress: 0 });
 
-            in_torrent_queue.push(e.torrenturl);
-            torrent_queue.push(e, function () {
+            botsan.in_torrent_queue.push(e.torrenturl);
+            botsan.torrent_queue.push(e, function () {
                 //Remove the episode from the in_queue when done.
-                in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
+                botsan.in_torrent_queue.splice(botsan.in_torrent_queue.indexOf(e.torrenturl), 1);
             });
             var foundeps = found;
             if (found > 0) {
@@ -132,10 +131,10 @@ function startQueue() {
             if(botsan.anime_list[i].finished)
                 continue;
             var e = new botsan.Episode(null, botsan.anime_list[i].torrenturl, null, botsan.anime_list[i]); //Parse the episode number to a integer.
-            in_torrent_queue.push(e.torrenturl);
-            torrent_queue.push(e, function () {
+            botsan.in_torrent_queue.push(e.torrenturl);
+            botsan.torrent_queue.push(e, function () {
                 //Remove the episode from the in_queue when done.
-                in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
+                botsan.in_torrent_queue.splice(botsan.in_torrent_queue.indexOf(e.torrenturl), 1);
             });
         }
     }

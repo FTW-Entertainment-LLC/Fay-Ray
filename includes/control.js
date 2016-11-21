@@ -78,6 +78,9 @@ function Control(botsan) {
                         var vrified = false;
                         var user = users[i];
                         password(formData.password).verifyAgainst(user.hash, function (error, verified) {
+                            //TODO: http://stackoverflow.com/questions/7053965/when-using-callbacks-inside-a-loop-in-javascript-is-there-any-way-to-save-a-var
+                            //user variable is always the last one inside this callback.
+                            //When that's done, I can do proper authentication fail. Right now it just loops endlessly...
                             if(!verified){
                                 return;
                             }
@@ -135,7 +138,11 @@ function Control(botsan) {
                                     formData.uploadsID = Number(formData.uploadsID);
                                     formData.quality = Number(formData.quality);
                                     formData.finished_episodes = [];
-                                    var anime = new botsan.anime(formData.title, formData.prefix, formData.regex, formData.nyaasearch, formData.nyaauser, formData.uploadsID, formData.quality);
+                                    var anime;
+                                    if (!formData.torrenturl)
+                                        anime = new botsan.anime(formData.title, formData.prefix, formData.regex, formData.nyaasearch, formData.nyaauser, formData.uploadsID, formData.quality);
+                                    else
+                                        anime = new botsan.anime(formData.title, formData.prefix, formData.regex, null, null, formData.uploadsID, formData.quality, null, formData.torrenturl);
                                     if (botsan.addNewSeries(anime)) {
                                         response.write('Series was added to Ray!<br />' + JSON.stringify(formData));
 
