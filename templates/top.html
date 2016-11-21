@@ -95,12 +95,15 @@
             if (i.Status == "Downloading" || i.Status == "Starting Download") {
                 showprogress = "(" + i.Progress + "%)";
             }
+            var ep = "";
+            if(i.Episode.episodeno)
+                ep = i.Episode.episodeno;
             if(Array.isArray(i.Status)){
                 i.Status.forEach(function(i2){
-                    newText += i.Episode.parent.title + " " + i.Episode.episodeno + " " + "-" + " " + i2 + " " + showprogress + " " + "<br>";
+                    newText += i.Episode.parent.title + " " + ep + " " + "-" + " " + i2 + " " + showprogress + " " + "<br>";
                 });
             }else{
-                newText += i.Episode.parent.title + " " + i.Episode.episodeno + " " + "-" + " " + i.Status + " " + showprogress + " " + "<br>";
+                newText += i.Episode.parent.title + " " + ep + " " + "-" + " " + i.Status + " " + showprogress + " " + "<br>";
             }
 
 
