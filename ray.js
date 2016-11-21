@@ -130,7 +130,7 @@ function startQueue() {
         } else {
             if(botsan.anime_list[i].finished)
                 continue;
-            if (in_torrent_queue.indexOf(botsan.anime_list[i].torrenturl) >= 0 ) {
+            if (botsan.in_torrent_queue.indexOf(botsan.anime_list[i].torrenturl) >= 0 ) {
                 continue;
             }
             var e = new botsan.Episode(null, botsan.anime_list[i].torrenturl, null, botsan.anime_list[i]); //Parse the episode number to a integer.
