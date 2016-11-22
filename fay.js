@@ -271,6 +271,7 @@ function startEncoding(encodeObj, callback) {
     if (botsan.os.platform() == "win32") {
         ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + encodeObj.dir, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
         //ls = botsan.spawn("cmd", ["/c"], { detached: true }); //Skip encode
+        var line = ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + encodeObj.dir, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"].join(" ");
         appendToCC(line);
     }
     //Spawn CC through shell
