@@ -175,7 +175,8 @@ function sftpDownload(object, callback){
         conn.sftp(function(err, sftp) {
             if (err)
                 botsan.logError(err);
-            botsan.updateData({ Episode: object.episode, Status: "Downloading ", Progress: 0 })
+            botsan.updateData({ Episode: object.episode, Status: "Downloading ", Progress: 0 });
+            botsan.createFoldersForFile(`${botsan.config.paths.downloads}/${object.download.filename}`);
             sftp.fastGet(`${botsan.config.paths.seedbox}/torrents/${object.download.filename}`, `${botsan.config.paths.downloads}/${object.download.filename}`, {step: function(total_transferred, chunk, total){
                 botsan.updateData({ Episode: object.episode, Status: "Downloading", Progress: Math.floor((total_transferred/total*100)*10)/10 })
             }},function(err){
@@ -220,6 +221,8 @@ function localeCompare(a,b){
 function startEncoding(encodeObj, callback) {
     //destination, Episode, index
     //Gets the full path
+
+    //TODO: Check that the file really exists
 
     var folderpath = botsan.path.normalize(botsan.path.resolve(botsan.config.paths.downloads));
 

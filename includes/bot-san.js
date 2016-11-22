@@ -467,4 +467,25 @@ Botsan.prototype.getAnimeById = function getAnimeById(id) {
     return null;
 }
 
+//This function creates the path except the last segment.
+Botsan.prototype.createFoldersForFile = function createFoldersForFile(path){
+    var separated = this.path.normalize(path).split(this.path.sep);
+    var pathnow = "";
+    //Loop the whole list except the last one.
+    for(var i=0;i<separated.length-1;i++){
+        var pathnow = this.path.join(pathnow, separated[i]);
+        try {
+            // Query the entry
+            stats = this.fs.lstatSync(pathnow);
+        }
+        catch (e) {
+            if(e.code == 'ENOENT'){
+                this.fs.mkdirSync(pathnow);
+            }
+
+        }
+
+    }
+}
+
 module.exports = Botsan;
