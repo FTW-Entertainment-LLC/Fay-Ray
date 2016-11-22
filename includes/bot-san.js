@@ -357,7 +357,7 @@ Botsan.prototype.loadSettings = function loadSettings() {
         this.fs.mkdirSync('./rays_data');
     }
 
-    this.config.paths.outputfolder = this.path.normalize(this.config.paths.outputfolder)
+    this.config.paths.outputfolder = this.path.normalize(this.path.resolve(this.config.paths.outputfolder))
     if (!this.fs.existsSync(this.config.paths.outputfolder)) {
         this.fs.mkdirSync(this.config.paths.outputfolder);
     }

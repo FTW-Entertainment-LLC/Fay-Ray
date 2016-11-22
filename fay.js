@@ -196,16 +196,17 @@ function sftpDownload(object, callback){
 
 function onDoneDownloading(Episode) {
     botsan.updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
-    botsan.fs.readdir(botsan.path.normalize(botsan.config.paths.downloads), function (err, files) {
+    var parsedPath = botsan.path.parse(botsan.path.normalize(botsan.path.resolve(botsan.path.join(botsan.config.paths.downloads, Episode.title))));
+    botsan.fs.readdir(parsedPath.dir , function (err, files) {
         if (err) {
             botsan.logError(err);
             throw (err);
         }
 
         files.sort(localeCompare);
-        var index = files.indexOf(Episode.title);
+        var index = files.indexOf(botsan.path.basename(Episode.title));
         in_encode_queue.push(Episode.title);
-        encode_queue.push({ Episode: Episode, index: index }, Episode.episodeno, function () {
+        encode_queue.push({ Episode: Episode, index: index, dir: parsedPath.dir }, Episode.episodeno, function () {
             in_encode_queue.splice(in_encode_queue.indexOf(Episode.title), 1);
         });
         botsan.updateData({ Episode: Episode, Status: "In transcoding queue", Progress: 0 });
@@ -223,8 +224,6 @@ function startEncoding(encodeObj, callback) {
     //Gets the full path
 
     //TODO: Check that the file really exists
-
-    var folderpath = botsan.path.normalize(botsan.path.resolve(botsan.config.paths.downloads));
 
     var encoding_eps = [];
 
@@ -270,15 +269,14 @@ function startEncoding(encodeObj, callback) {
     //Spawn CC through cmd
     var ls = "";
     if (botsan.os.platform() == "win32") {
-        ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
+        ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + encodeObj.dir, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"], { detached: true });
         //ls = botsan.spawn("cmd", ["/c"], { detached: true }); //Skip encode
-        var line = ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:"+botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality , "debug:true"].join(" ");
         appendToCC(line);
     }
     //Spawn CC through shell
     else if (botsan.os.platform() == "linux") {
 
-        var line = botsan.config.paths.MonoLocation + " " + botsan.config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + botsan.config.paths.outputfolder + " TempFolder:"+botsan.config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+botsan.config.paths.ffmpeg+" mencoder:"+botsan.config.paths.mencoder+" mkvextract:"+botsan.config.paths.mkvextract+" mkvmerge:"+botsan.config.paths.mkvmerge+" debug:true";
+        var line = botsan.config.paths.MonoLocation + " " + botsan.config.paths.CClocation + " SourceFolder:" + encodeObj.dir + " OutputFolder:" + botsan.config.paths.outputfolder + " TempFolder:"+botsan.config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+botsan.config.paths.ffmpeg+" mencoder:"+botsan.config.paths.mencoder+" mkvextract:"+botsan.config.paths.mkvextract+" mkvmerge:"+botsan.config.paths.mkvmerge+" debug:true";
         //Write the line in the cc file.
         appendToCC(line);
         ls = botsan.spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
@@ -297,7 +295,7 @@ function startEncoding(encodeObj, callback) {
 
     ls.stderr.on('data', function (data) {
         //TODO: Show progress
-        //console.log('stderr: ' + data);
+        console.log('stderr: ' + data);
         //appendToCC(data);
     });
     ls.on('error', function (err) {
