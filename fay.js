@@ -277,7 +277,7 @@ function startEncoding(encodeObj, callback) {
     //Spawn CC through shell
     else if (botsan.os.platform() == "linux") {
 
-        var line = botsan.config.paths.MonoLocation + " " + botsan.config.paths.CClocation + " SourceFolder:" + encodeObj.dir + " OutputFolder:" + botsan.config.paths.outputfolder + " TempFolder:"+botsan.config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+botsan.config.paths.ffmpeg+" mencoder:"+botsan.config.paths.mencoder+" mkvextract:"+botsan.config.paths.mkvextract+" mkvmerge:"+botsan.config.paths.mkvmerge+" debug:true";
+        var line = botsan.config.paths.MonoLocation + " " + botsan.config.paths.CClocation + " SourceFolder:\"" + encodeObj.dir + "\" OutputFolder:\"" + botsan.config.paths.outputfolder + "\" TempFolder:"+botsan.config.paths.temp+" Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:"+botsan.config.paths.ffmpeg+" mencoder:"+botsan.config.paths.mencoder+" mkvextract:"+botsan.config.paths.mkvextract+" mkvmerge:"+botsan.config.paths.mkvmerge+" debug:true";
         //Write the line in the cc file.
         appendToCC(line);
         ls = botsan.spawn("sh", ['-c', line], { detached: true }); //Todo: Change to variables
