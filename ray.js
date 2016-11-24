@@ -139,6 +139,7 @@ function startQueue() {
                 //Remove the episode from the in_queue when done.
                 botsan.in_torrent_queue.splice(botsan.in_torrent_queue.indexOf(e.torrenturl), 1);
             });
+            botsan.updateData({ Episode: e, Status: "In Torrent Queue", Progress: 0 });
         }
     }
 }
@@ -187,7 +188,6 @@ function onTorrentAdd(torrent, Episode, callback) {
         finished = true;
         var last_episode = null;
         for(var i=0;i<torrent.files.length;i++){
-            //Todo: Add only video files
             const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.torrentfolder}/${torrent.files[i].path}`), 0, 262);
             const filetype = fileType(buffer);
             if(filetype.mime.substring(0, 5)!="video"){
