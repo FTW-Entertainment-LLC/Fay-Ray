@@ -235,7 +235,7 @@ function startEncoding(encodeObj, callback) {
 
     encoding_eps.forEach(function(i){
         try{
-            if(botsan.fs.statSync(botsan.path.normalize(`./${botsan.config.paths.outputfolder}/${i.filename}`)).isFile()){
+            if(botsan.fs.statSync(botsan.path.normalize(`${botsan.config.paths.outputfolder}/${i.filename}`)).isFile()){
                 founds.push(1); //This is just a counter.
                 sendToFTPQueue(i);
             }
