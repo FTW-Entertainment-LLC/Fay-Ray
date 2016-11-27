@@ -384,6 +384,7 @@ Botsan.prototype.loadSettings = function loadSettings() {
     if (!this.fs.existsSync(this.config.paths.outputfolder)) {
         this.fs.mkdirSync(this.config.paths.outputfolder);
     }
+    this.myEmitter.emit('ready');
 }
 
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
