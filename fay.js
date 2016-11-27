@@ -27,15 +27,13 @@ var scpDefaults = {
 };
 
 
-botsan.myEmitter.on('ready', () => {
-    //Starts the queue on start, and then once every hour.
-    startQueue();
-    //We start processing the downloaded.json files, they are sent to the encoding queue.
-    //They're sent to the onDoneDownloading function, just like the episode does when a scp download is finished
-    processDownloads();
-    var minutes = 5, the_interval = minutes * 60 * 1000;
-    setInterval(startQueue, the_interval);
-});
+//Starts the queue on start, and then once every hour.
+startQueue();
+//We start processing the downloaded.json files, they are sent to the encoding queue.
+//They're sent to the onDoneDownloading function, just like the episode does when a scp download is finished
+processDownloads();
+var minutes = 5, the_interval = minutes * 60 * 1000;
+setInterval(startQueue, the_interval);
 
 
 function startQueue() {
