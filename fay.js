@@ -7,15 +7,7 @@ botsan.startConsole();
 var DEBUG = false;
 
 
-var downloaded_list = [];
-if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
-    try {
 
-        downloaded_list = JSON.parse(botsan.fs.readFileSync('./downloaded.json', 'utf8'));
-    } catch (e) {
-        botsan.logError(e);
-    }
-}
 
 //Downloads are in a priority queue, with episode number as a priority. Downloads with lower 
 var download_queue = botsan.async.priorityQueue(sftpDownload, botsan.config.settings.SIMULTANEOUS_SCP);
@@ -88,7 +80,7 @@ function processRaysDownloads(){
     downloads.forEach(function (download) {
         if(in_download_queue.indexOf(download.filename) >= 0 ||
            in_encode_queue.indexOf(download.filename) >= 0 ||
-           botsan.getObjByFilename(downloaded_list, download.filename) != null){
+           botsan.getObjByFilename(botsan.downloaded_list, download.filename) != null){
             return;
         }
 
@@ -126,7 +118,7 @@ function processRaysDownloads(){
 
 //Processes the /downloaded.json file, these will be sent to the encoded queue
 function processDownloads(){
-    downloaded_list.forEach(function (download) {
+    botsan.downloaded_list.forEach(function (download) {
         if(in_encode_queue.indexOf(download.filename) >= 0){
             return;
         }
@@ -184,9 +176,9 @@ function sftpDownload(object, callback){
                     botsan.logError(err);
                 botsan.updateData({ Episode: object.episode, Status: "Download complete", Progress: 0 });
                 var downloadedObj = new botsan.downloaded(object.episode.parent.uploadsID, object.download.filename, object.episode.episodeno);
-                downloaded_list.push(downloadedObj);
+                botsan.downloaded_list.push(downloadedObj);
                 conn.end();
-                botsan.writeDownloads(downloaded_list, callback);
+                botsan.writeDownloads(botsan.downloaded_list, callback);
                 onDoneDownloading(object.episode);
             });
         });

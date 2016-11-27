@@ -6,31 +6,14 @@ botsan.startConsole();
 var socketiohttp = require('http').createServer().listen(8888, '0.0.0.0');
 var io = require('socket.io').listen(socketiohttp);
 
-var config;
-if (botsan.fs.existsSync(botsan.path.normalize("./config.ini"))) {
-    config = botsan.ini.parse(botsan.fs.readFileSync('./config.ini', 'utf-8'));
-}else{
-    console.error("No config.ini file found!");
-}
-
 var DEBUG = false;
 
-if (!botsan.fs.existsSync(botsan.path.normalize(config.paths.torrentfolder))) {
-    botsan.fs.mkdirSync(botsan.path.normalize(config.paths.torrentfolder));
+if (!botsan.fs.existsSync(botsan.path.normalize(botsan.config.paths.downloads))) {
+    botsan.fs.mkdirSync(botsan.path.normalize(botsan.config.paths.downloads));
 }
 
-var downloaded_list = [];
-if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
-    try {
-
-        downloaded_list = JSON.parse(botsan.fs.readFileSync('./downloaded.json', 'utf8'));
-    } catch (e) {
-        botsan.logError(e);
-    }
-}
-
-botsan.nyaa_queue = botsan.async.queue(checkNyaa, config.settings.SIMULTANEOUS_NYAA_CHECKS);
-botsan.torrent_queue = botsan.async.queue(downloadEpisodes, config.settings.SIMULTANEOUS_DOWNLOADS);
+botsan.nyaa_queue = botsan.async.queue(checkNyaa, botsan.config.settings.SIMULTANEOUS_NYAA_CHECKS);
+botsan.torrent_queue = botsan.async.queue(downloadEpisodes, botsan.config.settings.SIMULTANEOUS_DOWNLOADS);
 var current_downloaded_articles = [];
 
 
@@ -152,7 +135,7 @@ function nyaaUrl(search, user) {
 function downloadEpisodes(Episode, callback) {
     //Don't add the torrent if it's already in the client.
     if (!botsan.tclient.get(Episode.torrenturl)) {
-        botsan.tclient.add(Episode.torrenturl, { path: botsan.path.resolve(config.paths.torrentfolder) }, function (torrent) {
+        botsan.tclient.add(Episode.torrenturl, { path: botsan.path.resolve(botsan.config.paths.downloads) }, function (torrent) {
             onTorrentAdd(torrent, Episode, callback);
         });
     } else{
@@ -188,7 +171,7 @@ function onTorrentAdd(torrent, Episode, callback) {
         finished = true;
         var last_episode = null;
         for(var i=0;i<torrent.files.length;i++){
-            const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.torrentfolder}/${torrent.files[i].path}`), 0, 262);
+            const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.downloads}/${torrent.files[i].path}`), 0, 262);
             const filetype = fileType(buffer);
             if(filetype.mime.substring(0, 5)!="video"){
                 continue;
@@ -241,7 +224,7 @@ function onTorrentAdd(torrent, Episode, callback) {
 
 function onDoneDownloading(file, Episode, callback) {
     botsan.updateData({ Episode: Episode, Status: "Download Finished", Progress: 0 });
-    botsan.fs.readdir(botsan.path.normalize(config.paths.torrentfolder), function (err, files) {
+    botsan.fs.readdir(botsan.path.normalize(botsan.config.paths.downloads), function (err, files) {
         if (err) {
             botsan.logError(err);
             callback();
@@ -255,8 +238,8 @@ function onDoneDownloading(file, Episode, callback) {
         //numeric sort
 
         var push = true;
-        for(i=0;i<downloaded_list.length;i++){
-            var dwnld = downloaded_list[i];
+        for(i=0;i<botsan.downloaded_list.length;i++){
+            var dwnld = botsan.downloaded_list[i];
 
             if(dwnld.uploadsID == downloadedObj.uploadsID && dwnld.episodeno == downloadedObj.episodeno){
                 push=false;
@@ -265,9 +248,9 @@ function onDoneDownloading(file, Episode, callback) {
         }
 
         if(push)
-            downloaded_list.push(downloadedObj);
+            botsan.downloaded_list.push(downloadedObj);
 
-        botsan.writeDownloads(downloaded_list, function(){
+        botsan.writeDownloads(botsan.downloaded_list, function(){
             botsan.saveSettings(botsan.anime_list);
             botsan.updateData({ Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0 });
 

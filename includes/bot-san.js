@@ -12,6 +12,7 @@ function Botsan(host) {
     this.colors = require('colors');
     this.events = require("events");
     this.FClient = require('ftp');
+    this.moment = require('moment');
     this.os = require('os');
     //TODO change to async retry
     this.retry = require('retry');
@@ -21,6 +22,7 @@ function Botsan(host) {
     this.torrent_queue = null;
     this.in_torrent_queue = [];
     this.downloaded_list = [];
+    this.cleanup_queue = this.async.queue(deleteFile, 1);
     this.host = host;
 
 
@@ -53,9 +55,14 @@ function Botsan(host) {
 
     var Control = require('./control.js');
     var control = null;
-    if(host){
+    if (host) {
         control = new Control(this);
     }
+
+    //Starts the queue on start, and then once every hour.
+    this.checkCleanup();
+    var minutes = 60, the_interval = minutes * 60 * 1000;
+    setInterval(this.checkCleanup, the_interval);
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
@@ -77,10 +84,10 @@ Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaaus
     if (finished_episodes) {
         this.finished_episodes = finished_episodes;
     }
-    if(!torrenturl){
+    if (!torrenturl) {
         this.nyaauser = nyaauser; //Nyaa user to use search in
         this.nyaasearch = nyaasearch; //Nyaa search field
-    }else{
+    } else {
         this.torrenturl = torrenturl;
     }
 
@@ -145,7 +152,7 @@ Botsan.prototype.updateData = function updateData(Obj) {
     var found = false;
     var counter;
     Obj.time = new Date().toISOString();
-    for(var i=0; i<this.episode_status.length;i++) {
+    for (var i = 0; i < this.episode_status.length; i++) {
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
         if ((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.Episode.title) ||
@@ -238,7 +245,7 @@ Botsan.prototype.writeData = function writeData() {
             showprogress = "(" + i.Progress + "%)";
         }
         var ep = "";
-        if(i.Episode.episodeno)
+        if (i.Episode.episodeno)
             ep = i.Episode.episodeno;
         if (Array.isArray(i.Status)) {
             i.Status.forEach(function (i2) {
@@ -318,7 +325,7 @@ Botsan.prototype.addNewSeries = function addNewSeries(series) {
     //TODO: If series has a torrenturl, check all other series if they have a similar torrenturl. If they do, do not allow anime to be added.
 
     this.anime_list.push(series);
-    if(!series.torrenturl) {
+    if (!series.torrenturl) {
         this.nyaa_queue.push(series);
     } else {
         var e = new this.Episode(null, series.torrenturl, null, series); //Parse the episode number to a integer.
@@ -354,6 +361,13 @@ Botsan.prototype.loadSettings = function loadSettings() {
     } else {
         console.error("No config.ini file found!");
     }
+    if (this.fs.existsSync(this.path.normalize("./downloaded.json"))) {
+        try {
+            this.downloaded_list = JSON.parse(this.fs.readFileSync('./downloaded.json', 'utf8'));
+        } catch (e) {
+            this.logError(e);
+        }
+    }
     this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
     if (!this.fs.existsSync(this.config.paths.downloads)) {
         this.fs.mkdirSync(this.config.paths.downloads);
@@ -386,14 +400,13 @@ Botsan.prototype.saveSettings = function saveSettings(anime_list) {
 
 Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback) {
     var outputFilename = this.path.normalize('./downloaded.json');
-    this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
+    this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err, test) {
         if (err) {
             this.logError(err);
             console.log(err);
         }
         callback();
     });
-
 }
 
 Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, callback) {
@@ -444,7 +457,7 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
 }
 
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
-    if(!this.config.settings.NOTIFICATIONS){
+    if (!this.config.settings.NOTIFICATIONS) {
         return false;
     }
     var channel = "245289486295105546";
@@ -486,24 +499,72 @@ Botsan.prototype.getAnimeById = function getAnimeById(id) {
 }
 
 //This function creates the path except the last segment.
-Botsan.prototype.createFoldersForFile = function createFoldersForFile(path){
+Botsan.prototype.createFoldersForFile = function createFoldersForFile(path) {
     var separated = this.path.normalize(path).split(this.path.sep);
     var pathnow = "";
     //Loop the whole list except the last one.
-    for(var i=0;i<separated.length-1;i++){
+    for (var i = 0; i < separated.length - 1; i++) {
         var pathnow = this.path.join(pathnow, separated[i]);
         try {
             // Query the entry
             stats = this.fs.lstatSync(pathnow);
         }
         catch (e) {
-            if(e.code == 'ENOENT'){
+            if (e.code == 'ENOENT') {
                 this.fs.mkdirSync(pathnow);
             }
 
         }
 
     }
+}
+
+function statCallbackFile(file, download, botsan){
+    //Creates a scope to hold the variable file for fs.stat callback.
+    return function (err, stat) {
+        if (err) {
+            if (err.code == 'ENOENT') {
+                //Cleanup will delete it from the downloaded.json file.
+                botsan.cleanup_queue.push({botsan: botsan, file: file, download: download});
+            }else{
+                botsan.logError(err);
+            }
+            return;
+        }
+        var startDate = botsan.moment(stat.ctime);
+        var endDate = botsan.moment();
+        var diff = endDate.diff(startDate, 'weeks')
+        if(diff>0){
+            botsan.cleanup_queue.push({botsan: botsan, file: file, download: download});
+        }
+    }
+}
+
+Botsan.prototype.checkCleanup = function checkCleanup() {
+    for (var i = 0; i < this.downloaded_list.length; i++) {
+        var file = this.path.normalize(`${this.config.paths.downloads}/${this.downloaded_list[i].filename}`);
+        this.fs.stat(file, statCallbackFile(file, this.downloaded_list[i], this));
+    }
+}
+
+function deleteFile(fileObj, callback) {
+    var index = fileObj.botsan.downloaded_list.indexOf(fileObj.download);
+    if (index > -1) {
+        fileObj.botsan.downloaded_list.splice(index, 1);
+        delete fileObj.download;
+        fileObj.botsan.fs.unlink(fileObj.file, function(err){
+            if(err){
+                if (err.code != 'ENOENT') {
+                    //Only log errors if it's not ENOENT, if the file doesn't exist then just remove it from the downloaded_list
+                    fileObj.botsan.logError(err);
+                }
+            }
+
+            fileObj.botsan.writeDownloads(fileObj.botsan.downloaded_list, callback);
+        })
+
+    }
+
 }
 
 module.exports = Botsan;
