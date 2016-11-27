@@ -71,8 +71,6 @@
     var socket = io();
     socket.on('news', function (data) {
         writeData(data);
-
-        //socket.emit('my other event', { my: 'data' });
     });
     var last_refresh = 0;
     function writeData(data) {

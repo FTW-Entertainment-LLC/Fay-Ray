@@ -6,17 +6,6 @@ botsan.startConsole();
 
 var DEBUG = false;
 
-
-var downloaded_list = [];
-if (botsan.fs.existsSync(botsan.path.normalize("./downloaded.json"))) {
-    try {
-
-        downloaded_list = JSON.parse(botsan.fs.readFileSync('./downloaded.json', 'utf8'));
-    } catch (e) {
-        botsan.logError(e);
-    }
-}
-
 //Downloads are in a priority queue, with episode number as a priority. Downloads with lower 
 var download_queue = botsan.async.priorityQueue(sftpDownload, botsan.config.settings.SIMULTANEOUS_SCP);
 var in_download_queue = [];
@@ -36,21 +25,15 @@ var scpDefaults = {
     privateKey: botsan.fs.readFileSync(botsan.path.normalize(botsan.config.scp.privatekey)),
 };
 
-
-//Starts the queue on start, and then once every hour.
-startQueue();
-
 //We start processing the downloaded.json files, they are sent to the encoding queue.
 //They're sent to the onDoneDownloading function, just like the episode does when a scp download is finished
 processDownloads();
-var minutes = 5, the_interval = minutes * 60 * 1000;
-setInterval(startQueue, the_interval);
 
-function startQueue() {
-    checkDownloads();
+function onReceiveEncode(episode){
+
 }
 
-function checkDownloads(){
+/*function checkDownloads(){
     botsan.updateAppData({ message: "Fay: Checking downloads on seedbox... ", id: -1 });
 
     var Client = require('ssh2').Client;
@@ -88,7 +71,7 @@ function processRaysDownloads(){
     downloads.forEach(function (download) {
         if(in_download_queue.indexOf(download.filename) >= 0 ||
            in_encode_queue.indexOf(download.filename) >= 0 ||
-           botsan.getObjByFilename(downloaded_list, download.filename) != null){
+           botsan.getObjByFilename(botsan.downloaded_list, download.filename) != null){
             return;
         }
 
@@ -104,7 +87,7 @@ function processRaysDownloads(){
                 botsan.saveSettings(botsan.anime_list);
             }
             if(botsan.getAnimeById(download.uploadsID)){
-                if (botsan.getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*/)) != -1) {
+                if (botsan.getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*//*)) != -1) {
                     //Don't continue if this episode has already been uploaded.
                     return;
                 }
@@ -120,13 +103,13 @@ function processRaysDownloads(){
         }
     });
 
-}
+}*/
 
 //TODO: Function processDownloads (run once on startup) and processRaysDownloads(run everytime it downloads from ray) is redundant. Make it non-redundant.
 
 //Processes the /downloaded.json file, these will be sent to the encoded queue
 function processDownloads(){
-    downloaded_list.forEach(function (download) {
+    botsan.downloaded_list.forEach(function (download) {
         if(in_encode_queue.indexOf(download.filename) >= 0){
             return;
         }
@@ -147,7 +130,6 @@ function processDownloads(){
             onDoneDownloading(episode);
         }
     });
-
 }
 
 function getSavefileDataById(id){
@@ -184,9 +166,9 @@ function sftpDownload(object, callback){
                     botsan.logError(err);
                 botsan.updateData({ Episode: object.episode, Status: "Download complete", Progress: 0 });
                 var downloadedObj = new botsan.downloaded(object.episode.parent.uploadsID, object.download.filename, object.episode.episodeno);
-                downloaded_list.push(downloadedObj);
+                botsan.downloaded_list.push(downloadedObj);
                 conn.end();
-                botsan.writeDownloads(downloaded_list, callback);
+                botsan.writeDownloads(botsan.downloaded_list, callback);
                 onDoneDownloading(object.episode);
             });
         });
@@ -488,7 +470,23 @@ socket.on('reconnect_attempt', function(num){
 
 socket.on('connect', function(){
     botsan.updateAppData({message: "Connected to Ray", id: -2});
-    socket.emit('identification', { name: botsan.config.settings.name });
+    socket.emit('identification', {
+        name: botsan.os.hostname(),
+        queuelength: encode_queue.length() + download_queue.length(),
+        maxdl: botsan.config.settings.SIMULTANEOUS_SCP,
+        maxtcode: botsan.config.settings.SIMULTANEOUS_ENCODES
+    });
+    //TODO: Emit this only when changed.
+    setInterval(function () {
+        socket.emit('queuelength', encode_queue.length() + download_queue.length());
+    }, 1000);
+});
+
+socket.on('episode', function (data) {
+    var parent = botsan.getAnimeById(data.data.parent);
+    if(!parent){
+        socket.emit('getAnime', data.data.parent);
+    }
 
 });
 
