@@ -11,8 +11,8 @@ var io = require('socket.io').listen(socketiohttp);
 
 var DEBUG = false;
 
-if (!botsan.fs.existsSync(botsan.path.normalize(botsan.config.paths.torrentfolder))) {
-    botsan.fs.mkdirSync(botsan.path.normalize(botsan.config.paths.torrentfolder));
+if (!botsan.fs.existsSync(botsan.path.normalize(botsan.config.paths.downloads))) {
+    botsan.fs.mkdirSync(botsan.path.normalize(botsan.config.paths.downloads));
 }
 
 botsan.nyaa_queue = botsan.async.queue(checkNyaa, botsan.config.settings.SIMULTANEOUS_NYAA_CHECKS);
@@ -154,7 +154,7 @@ function nyaaUrl(search, user) {
 function downloadEpisodes(Episode, callback) {
     //Don't add the torrent if it's already in the client.
     if (!botsan.tclient.get(Episode.torrenturl)) {
-        botsan.tclient.add(Episode.torrenturl, {path: botsan.path.resolve(botsan.config.paths.torrentfolder)}, function (torrent) {
+        botsan.tclient.add(Episode.torrenturl, {path: botsan.path.resolve(botsan.config.paths.downloads)}, function (torrent) {
             onTorrentAdd(torrent, Episode, callback);
         });
     } else {
@@ -190,7 +190,7 @@ function onTorrentAdd(torrent, Episode, callback) {
         finished = true;
         var last_episode = null;
         for (var i = 0; i < torrent.files.length; i++) {
-            const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.torrentfolder}/${torrent.files[i].path}`), 0, 262);
+            const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.downloads}/${torrent.files[i].path}`), 0, 262);
             const filetype = fileType(buffer);
             if (filetype.mime.substring(0, 5) != "video") {
                 continue;
@@ -243,7 +243,7 @@ function onTorrentAdd(torrent, Episode, callback) {
 
 function onDoneDownloading(file, Episode, callback) {
     botsan.updateData({Episode: Episode, Status: "Download Finished", Progress: 0});
-    botsan.fs.readdir(botsan.path.normalize(botsan.config.paths.torrentfolder), function (err, files) {
+    botsan.fs.readdir(botsan.path.normalize(botsan.config.paths.downloads), function (err, files) {
         if (err) {
             botsan.logError(err);
             callback();
@@ -260,29 +260,29 @@ function onDoneDownloading(file, Episode, callback) {
 
         var push = true;
         for (i = 0; i < botsan.downloaded_list.length; i++) {
-            var dwnld = botsan.downloaded_list[i];
+            for (i = 0; i < botsan.downloaded_list.length; i++) {
+                var dwnld = botsan.downloaded_list[i];
 
-            if (dwnld.uploadsID == downloadedObj.uploadsID && dwnld.episodeno == downloadedObj.episodeno) {
-                push = false;
-                break;
+                if (dwnld.uploadsID == downloadedObj.uploadsID && dwnld.episodeno == downloadedObj.episodeno) {
+                    push = false;
+                    break;
+                }
             }
+            if (push)
+                botsan.downloaded_list.push(downloadedObj);
+
+            botsan.writeDownloads(botsan.downloaded_list, function () {
+                botsan.saveSettings(botsan.anime_list);
+                botsan.updateData({Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0});
+
+                setTimeout(function () {
+                    botsan.clearData(Episode);
+                }, 3600000); //Clear after 1 hour
+
+                transcode_queue.push(Episode, 0, onTranscodeFinish);
+                callback(file);
+            });
         }
-
-        if (push)
-            botsan.downloaded_list.push(downloadedObj);
-
-        botsan.writeDownloads(botsan.downloaded_list, function () {
-            botsan.saveSettings(botsan.anime_list);
-            botsan.updateData({Episode: Episode, Status: "Waiting to be pulled by Fay", Progress: 0});
-
-            setTimeout(function () {
-                botsan.clearData(Episode);
-            }, 3600000); //Clear after 1 hour
-
-            transcode_queue.push(Episode, 0, onTranscodeFinish);
-            callback(file);
-        });
-
     });
 }
 
@@ -304,7 +304,7 @@ function sendEpisodeToTranscode(episode, callback) {
         var freenode = getLowestQueuedNode();
         var data = extend({}, episode);
         data.parent = episode.parent.uploadsID;
-        freenode.socket.emit('episode', { data });
+        freenode.socket.emit('episode', {data});
         freenode.socket.on('queuelength', function (data) {
             obj.queuelength = data;
         });
