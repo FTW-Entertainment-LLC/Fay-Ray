@@ -453,7 +453,7 @@ function uploadOp(uplObj, FTPc) {
             botsan.logError(err);
             console.log(err);
         }
-        FTPc.put(botsan.path.resolve(`./${botsan.config.paths.outputfolder}/${uplObj.filename}`), uplObj.filename, function (err) {
+        FTPc.put(botsan.path.resolve(`${botsan.config.paths.outputfolder}/${uplObj.filename}`), uplObj.filename, function (err) {
             if (err) {
                 botsan.logError(err);
                 console.log(err);
