@@ -20,6 +20,7 @@ function Botsan(host) {
     this.nyaa_queue = null;
     this.torrent_queue = null;
     this.in_torrent_queue = [];
+    this.downloaded_list = [];
     this.host = host;
 
 
@@ -340,6 +341,14 @@ Botsan.prototype.loadSettings = function loadSettings() {
             this.logError(e);
         }
     }
+    if (this.fs.existsSync(this.path.normalize("./downloaded.json"))) {
+        try {
+            this.downloaded_list = JSON.parse(this.fs.readFileSync('./downloaded.json', 'utf8'));
+        } catch (e) {
+            this.logError(e);
+        }
+    }
+
     if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
         this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
     } else {
@@ -408,6 +417,15 @@ Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, js
     }
     return null;
 
+}
+
+Botsan.prototype.getDownload = function getDownload(uploadsID, epno) {
+    for (var i = 0; i < this.downloaded_list.length; i++) {
+        if (this.downloaded_list[i].uploadsID == uploadsID && this.downloaded_list[i].episodeno == epno) {
+            return this.downloaded_list[i];
+        }
+    }
+    return null;
 }
 
 Botsan.prototype.createFilename = function createFilename(prefix, episode, resolution) {
