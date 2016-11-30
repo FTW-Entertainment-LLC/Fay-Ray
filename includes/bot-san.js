@@ -61,8 +61,9 @@ function Botsan(host) {
 
     //Starts the queue on start, and then once every hour.
     this.checkCleanup();
+    var botsan = this;
     var minutes = 60, the_interval = minutes * 60 * 1000;
-    setInterval(this.checkCleanup, the_interval);
+    setInterval(function() { botsan.checkCleanup(); }, the_interval);
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
@@ -384,6 +385,7 @@ Botsan.prototype.loadSettings = function loadSettings() {
     if (!this.fs.existsSync(this.config.paths.outputfolder)) {
         this.fs.mkdirSync(this.config.paths.outputfolder);
     }
+    this.myEmitter.emit('ready');
 }
 
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
