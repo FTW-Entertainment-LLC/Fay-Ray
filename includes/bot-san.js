@@ -1,4 +1,4 @@
-function Botsan() {
+function Botsan(host) {
     "use strict";
     this.FeedParser = require('feedparser')
     this.request = require('request');
@@ -12,11 +12,19 @@ function Botsan() {
     this.colors = require('colors');
     this.events = require("events");
     this.FClient = require('ftp');
+    this.moment = require('moment');
     this.os = require('os');
+    //TODO change to async retry
     this.retry = require('retry');
     this.date = new Date();
     this.tclient = new this.WebTorrent();
     this.nyaa_queue = null;
+    this.torrent_queue = null;
+    this.in_torrent_queue = [];
+    this.downloaded_list = [];
+    this.cleanup_queue = this.async.queue(deleteFile, 1);
+    this.host = host;
+
 
     const EventEmitter = require('events');
     class MyEmitter extends EventEmitter {
@@ -46,7 +54,16 @@ function Botsan() {
     this.loadSettings();
 
     var Control = require('./control.js');
-    var control = new Control(this);
+    var control = null;
+    if (host) {
+        control = new Control(this);
+    }
+
+    //Starts the queue on start, and then once every hour.
+    this.checkCleanup();
+    var botsan = this;
+    var minutes = 60, the_interval = minutes * 60 * 1000;
+    setInterval(function() { botsan.checkCleanup(); }, the_interval);
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
@@ -56,17 +73,23 @@ Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent
     this.parent = parent; //Reference to the anime object.
 };
 
-Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaauser, uploadsID, quality, finished_episodes) {
+
+//TODO: Switch parameters to object so the function is more modular
+Botsan.prototype.anime = function anime(title, prefix, regex, nyaasearch, nyaauser, uploadsID, quality, finished_episodes, torrenturl) {
     this.title = title; //Anime title
     this.prefix = prefix; //AnimeFTW prefix
     this.regex = regex; //Regex to match the nyaa entries and group episode number.
-    this.nyaasearch = nyaasearch; //Nyaa search field
-    this.nyaauser = nyaauser; //Nyaa user to use search in
     this.uploadsID = uploadsID; // uploads board ID
     this.quality = quality; //Quality for the series to be encoded in. Can be 480, 720 or 1080.
     this.finished_episodes = [];
     if (finished_episodes) {
         this.finished_episodes = finished_episodes;
+    }
+    if (!torrenturl) {
+        this.nyaauser = nyaauser; //Nyaa user to use search in
+        this.nyaasearch = nyaasearch; //Nyaa search field
+    } else {
+        this.torrenturl = torrenturl;
     }
 
 };
@@ -127,35 +150,28 @@ Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename) {
 }
 
 Botsan.prototype.updateData = function updateData(Obj) {
-    var index = -1;
+    var found = false;
     var counter;
     Obj.time = new Date().toISOString();
-    var correctEpisode = null;
-    this.episode_status.forEach(function (i) {
-        if (correctEpisode != null)
-            return false;
-
+    for (var i = 0; i < this.episode_status.length; i++) {
         //If there's a torrenturl, then identify the episode by the torrenturl. Otherwise do it by the title, which is used as filename in Fay.js
         //Ray uses the torrenturl, and title is the anime title.
-        if ((Obj.torrenturl == null && i.Episode.title == Obj.Episode.title) ||
-            (Obj.torrenturl != null && i.Episode.torrenturl == Obj.Episode.torrenturl)) {
-            i.Progress = Obj.Progress;
-            i.Status = Obj.Status;
-            index = counter;
-            correctEpisode = i;
+        if ((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.Episode.title) ||
+            (Obj.torrenturl != null && this.episode_status[i].Episode.torrenturl == Obj.Episode.torrenturl)) {
+            this.episode_status[i].Progress = Obj.Progress;
+            this.episode_status[i].Status = Obj.Status;
+            found = true;
+            break;
         }
-
-        counter++;
-    });
+    }
 
 
-    if (index == -1) {
+    if (found == false) {
         this.episode_status.push(Obj);
-
         this.episode_status.sort(this.compareEpisodeData);
     }
     this.writeData();
-    return true;
+    return i;
 }
 
 Botsan.prototype.clearData = function clearData(Obj) {
@@ -229,12 +245,15 @@ Botsan.prototype.writeData = function writeData() {
         if (i.Status == "Downloading" || i.Status == "Starting Download") {
             showprogress = "(" + i.Progress + "%)";
         }
+        var ep = "";
+        if (i.Episode.episodeno)
+            ep = i.Episode.episodeno;
         if (Array.isArray(i.Status)) {
             i.Status.forEach(function (i2) {
-                console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i2, showprogress);
+                console.log(i.Episode.parent.title, ep, "-", i2, showprogress);
             });
         } else {
-            console.log(i.Episode.parent.title, i.Episode.episodeno, "-", i.Status, showprogress);
+            console.log(i.Episode.parent.title, ep, "-", i.Status, showprogress);
         }
 
 
@@ -304,9 +323,20 @@ Botsan.prototype.logError = function logError(err) {
 Botsan.prototype.addNewSeries = function addNewSeries(series) {
     if (this.getAnimeById(series.uploadsID))
         return false;
+    //TODO: If series has a torrenturl, check all other series if they have a similar torrenturl. If they do, do not allow anime to be added.
 
     this.anime_list.push(series);
-    this.nyaa_queue.push(series);
+    if (!series.torrenturl) {
+        this.nyaa_queue.push(series);
+    } else {
+        var e = new this.Episode(null, series.torrenturl, null, series); //Parse the episode number to a integer.
+        this.in_torrent_queue.push(e.torrenturl);
+        this.torrent_queue.push(e, function () {
+            //Remove the episode from the in_queue when done.
+            this.in_torrent_queue.splice(in_torrent_queue.indexOf(e.torrenturl), 1);
+        });
+    }
+
     this.saveSettings(this.anime_list);
     return true;
 }
@@ -319,10 +349,25 @@ Botsan.prototype.loadSettings = function loadSettings() {
             this.logError(e);
         }
     }
+    if (this.fs.existsSync(this.path.normalize("./downloaded.json"))) {
+        try {
+            this.downloaded_list = JSON.parse(this.fs.readFileSync('./downloaded.json', 'utf8'));
+        } catch (e) {
+            this.logError(e);
+        }
+    }
+
     if (this.fs.existsSync(this.path.normalize("./config.ini"))) {
         this.config = this.ini.parse(this.fs.readFileSync('./config.ini', 'utf-8'));
     } else {
         console.error("No config.ini file found!");
+    }
+    if (this.fs.existsSync(this.path.normalize("./downloaded.json"))) {
+        try {
+            this.downloaded_list = JSON.parse(this.fs.readFileSync('./downloaded.json', 'utf8'));
+        } catch (e) {
+            this.logError(e);
+        }
     }
     this.config.paths.downloads = this.path.normalize(this.config.paths.downloads)
     if (!this.fs.existsSync(this.config.paths.downloads)) {
@@ -336,10 +381,11 @@ Botsan.prototype.loadSettings = function loadSettings() {
         this.fs.mkdirSync('./rays_data');
     }
 
-    this.config.paths.outputfolder = this.path.normalize(this.config.paths.outputfolder)
+    this.config.paths.outputfolder = this.path.normalize(this.path.resolve(this.config.paths.outputfolder))
     if (!this.fs.existsSync(this.config.paths.outputfolder)) {
         this.fs.mkdirSync(this.config.paths.outputfolder);
     }
+    this.myEmitter.emit('ready');
 }
 
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
@@ -356,14 +402,13 @@ Botsan.prototype.saveSettings = function saveSettings(anime_list) {
 
 Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback) {
     var outputFilename = this.path.normalize('./downloaded.json');
-    this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err) {
+    this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err, test) {
         if (err) {
             this.logError(err);
             console.log(err);
         }
         callback();
     });
-
 }
 
 Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, callback) {
@@ -389,6 +434,15 @@ Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, js
 
 }
 
+Botsan.prototype.getDownload = function getDownload(uploadsID, epno) {
+    for (var i = 0; i < this.downloaded_list.length; i++) {
+        if (this.downloaded_list[i].uploadsID == uploadsID && this.downloaded_list[i].episodeno == epno) {
+            return this.downloaded_list[i];
+        }
+    }
+    return null;
+}
+
 Botsan.prototype.createFilename = function createFilename(prefix, episode, resolution) {
     if (!prefix)
         return null;
@@ -405,7 +459,7 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
 }
 
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
-    if(!this.config.settings.NOTIFICATIONS){
+    if (!this.config.settings.NOTIFICATIONS) {
         return false;
     }
     var channel = "245289486295105546";
@@ -444,6 +498,75 @@ Botsan.prototype.getAnimeById = function getAnimeById(id) {
         }
     }
     return null;
+}
+
+//This function creates the path except the last segment.
+Botsan.prototype.createFoldersForFile = function createFoldersForFile(path) {
+    var separated = this.path.normalize(path).split(this.path.sep);
+    var pathnow = "";
+    //Loop the whole list except the last one.
+    for (var i = 0; i < separated.length - 1; i++) {
+        var pathnow = this.path.join(pathnow, separated[i]);
+        try {
+            // Query the entry
+            stats = this.fs.lstatSync(pathnow);
+        }
+        catch (e) {
+            if (e.code == 'ENOENT') {
+                this.fs.mkdirSync(pathnow);
+            }
+
+        }
+
+    }
+}
+
+function statCallbackFile(file, download, botsan){
+    //Creates a scope to hold the variable file for fs.stat callback.
+    return function (err, stat) {
+        if (err) {
+            if (err.code == 'ENOENT') {
+                //Cleanup will delete it from the downloaded.json file.
+                botsan.cleanup_queue.push({botsan: botsan, file: file, download: download});
+            }else{
+                botsan.logError(err);
+            }
+            return;
+        }
+        var startDate = botsan.moment(stat.ctime);
+        var endDate = botsan.moment();
+        var diff = endDate.diff(startDate, 'weeks')
+        if(diff>0){
+            botsan.cleanup_queue.push({botsan: botsan, file: file, download: download});
+        }
+    }
+}
+
+Botsan.prototype.checkCleanup = function checkCleanup() {
+    for (var i = 0; i < this.downloaded_list.length; i++) {
+        var file = this.path.normalize(`${this.config.paths.downloads}/${this.downloaded_list[i].filename}`);
+        this.fs.stat(file, statCallbackFile(file, this.downloaded_list[i], this));
+    }
+}
+
+function deleteFile(fileObj, callback) {
+    var index = fileObj.botsan.downloaded_list.indexOf(fileObj.download);
+    if (index > -1) {
+        fileObj.botsan.downloaded_list.splice(index, 1);
+        delete fileObj.download;
+        fileObj.botsan.fs.unlink(fileObj.file, function(err){
+            if(err){
+                if (err.code != 'ENOENT') {
+                    //Only log errors if it's not ENOENT, if the file doesn't exist then just remove it from the downloaded_list
+                    fileObj.botsan.logError(err);
+                }
+            }
+
+            fileObj.botsan.writeDownloads(fileObj.botsan.downloaded_list, callback);
+        })
+
+    }
+
 }
 
 module.exports = Botsan;

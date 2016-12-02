@@ -53,9 +53,14 @@ describe('Module Bot-san', function() {
     });
 
     describe('updateData()', function() {
-        it('should return false when there\'s no status', function(){
-            botsan.last_refresh = new Date().getTime(); //Don't console.log
-            assert.equal(botsan.updateData({ Episode: ep, Status: "In Torrent Queue", Progress: 0 }), false);
+        botsan.last_refresh = new Date().getTime(); //Don't console.log
+        var currentlength = botsan.episode_status.length;
+        var index = botsan.updateData({ Episode: ep, Status: "In Torrent Queue", Progress: 0 });
+        it('should add the object in botsan.episode_status', function(){
+            assert.equal(botsan.episode_status.length, currentlength+1);
+        });
+        it('should return the index number of the new object (0 in this case)', function(){
+            assert.equal(index, 0);
         });
 
     });

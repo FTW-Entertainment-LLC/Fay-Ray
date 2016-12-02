@@ -78,6 +78,9 @@ function Control(botsan) {
                         var vrified = false;
                         var user = users[i];
                         password(formData.password).verifyAgainst(user.hash, function (error, verified) {
+                            //TODO: http://stackoverflow.com/questions/7053965/when-using-callbacks-inside-a-loop-in-javascript-is-there-any-way-to-save-a-var
+                            //user variable is always the last one inside this callback.
+                            //When that's done, I can do proper authentication fail. Right now it just loops endlessly...
                             if(!verified){
                                 return;
                             }
@@ -106,14 +109,22 @@ function Control(botsan) {
                                     missing = true;
                                     response.write('Missing regex!<br>');
                                 }
-                                if (!formData.nyaasearch) {
+                                if(!formData.torrenturl && !formData.nyaasearch && !formData.nyaauser){
+                                    missing = true;
+                                    response.write('Missing torrenturl search!<br>');
+                                    response.write('or missing nyaa search and missing nyaa user id!<br>');
+                                }
+
+                                if (!formData.torrenturl && !formData.nyaasearch) {
                                     missing = true;
                                     response.write('Missing nyaa search!<br>');
                                 }
-                                if (!formData.nyaauser) {
+                                if (!formData.torrenturl && !formData.nyaauser) {
                                     missing = true;
                                     response.write('Missing nyaa user id!<br>');
                                 }
+
+
                                 if (!formData.uploadsID) {
                                     missing = true;
                                     response.write('Missing uploads ID!<br>');
@@ -127,7 +138,11 @@ function Control(botsan) {
                                     formData.uploadsID = Number(formData.uploadsID);
                                     formData.quality = Number(formData.quality);
                                     formData.finished_episodes = [];
-                                    var anime = new botsan.anime(formData.title, formData.prefix, formData.regex, formData.nyaasearch, formData.nyaauser, formData.uploadsID, formData.quality);
+                                    var anime;
+                                    if (!formData.torrenturl)
+                                        anime = new botsan.anime(formData.title, formData.prefix, formData.regex, formData.nyaasearch, formData.nyaauser, formData.uploadsID, formData.quality);
+                                    else
+                                        anime = new botsan.anime(formData.title, formData.prefix, formData.regex, null, null, formData.uploadsID, formData.quality, null, formData.torrenturl);
                                     if (botsan.addNewSeries(anime)) {
                                         response.write('Series was added to Ray!<br />' + JSON.stringify(formData));
 
@@ -139,11 +154,8 @@ function Control(botsan) {
                                     } else {
                                         response.write('Series is already in the list');
                                     }
-
-                                    response.end('</body></html>');
-
-
                                 }
+                                response.end('</body></html>');
 
                             }
                         });
@@ -164,6 +176,7 @@ function Control(botsan) {
     }
 
     io.on('connection', function (socket) {
+
         botsan.myEmitter.on('writeData', () => {
             socket.emit('news', {application_status: botsan.application_status, episode_status: botsan.episode_status});
         });
