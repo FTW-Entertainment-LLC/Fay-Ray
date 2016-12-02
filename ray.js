@@ -34,7 +34,7 @@ function checkNyaa(series, callback){
     req.on('response', function (res) {
         var stream = this;
 
-        if (res.statusCode != 200) return this.emit('error', new Error('Bad status code'));
+        if (res.statusCode != 200) return this.emit('error', new Error(`Bad status code: ${res.statusCode} (${nyaaurl})`));
 
         stream.pipe(feedparser);
     });
