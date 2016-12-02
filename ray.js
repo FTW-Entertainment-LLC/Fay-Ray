@@ -1,5 +1,5 @@
 var bsan = require('./includes/bot-san.js');
-var botsan = new bsan(true);
+var botsan = new bsan(true, false);
 const readChunk = require('read-chunk'); // npm install read-chunk
 const fileType = require('file-type');
 botsan.startConsole();
