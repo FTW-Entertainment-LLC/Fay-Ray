@@ -1,5 +1,5 @@
 var bsan = require('./includes/bot-san.js');
-var botsan = new bsan(false);
+var botsan = new bsan(false, true);
 var Transcoder = require('./includes/transcoder.js');
 var transcoder = new Transcoder(botsan);
 var socket = require('socket.io-client')(`${botsan.config.connection.address}:8888`, {reconnectionDelay: botsan.config.connection.reconnection_delay});
