@@ -134,6 +134,7 @@ function processDownloads() {
                 //Don't continue if this episode has already been uploaded.
                 return;
             }
+
             var episode = new botsan.Episode(download.filename, null, download.episodeno, myanime);
             onDoneDownloading(episode);
         }
@@ -271,7 +272,7 @@ function startEncoding(encodeObj, callback) {
     }
 
     //Array so it can display more status for each episodes.
-    botsan.updateData({Episode: encodeObj.Episode, Status: ["Transcoding"], Progress: 0});
+    botsan.updateData({Episode: encodeObj.Episode, Status: "Transcoding", Progress: 0});
 
     if (encodeObj.Episode.parent.ffmpeg == null || encodeObj.Episode.parent.ffmpeg == false) {
         //Write the time
