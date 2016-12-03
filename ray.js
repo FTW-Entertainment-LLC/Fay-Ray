@@ -201,8 +201,8 @@ function onTorrentAdd(torrent, Episode, callback) {
                         Episode.parent.finished = true;
                         botsan.saveSettings(botsan.anime_list);
                     }
-                    callback();
                 }
+                callback();
 
             });
         }
