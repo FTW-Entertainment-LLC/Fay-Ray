@@ -4,9 +4,17 @@
 var Transcoder = require('./includes/transcoder.js');
 var Botsan = require('./includes/bot-san.js');
 var botsan = new Botsan();
-var Transcoder = new Transcoder(botsan);
+var transcoder = new Transcoder(botsan);
 
-var source = "C:/Users/Hani/Videos/[MK-Pn8] Sword Art Online II - 01v3 [BD 720p][Hi10][Dual][370C2D66].mkv";
+var source = "C:/Users/Hani/Videos/[HorribleSubs] Berserk - 01 [1080p].mkv";
+var anime = new botsan.anime("Berserk", "berserk", "regex", "berserk", 0, 0, 1080);
+var episode = new botsan.Episode("[HorribleSubs] Berserk - 01 [1080p].mkv", "http://nyaa.se", 1, anime);
+
+transcoder.run(source, episode, function(err){
+    if(err)
+        throw err;
+    console.log("ep finished")
+});
 
 /*Transcoder.transcode('C:/Users/Hani/Videos/[HorribleSubs] Berserk - 01 [1080p].mkv', 'C:/Users/Hani/Videos/berserk_1080p_1_ns.mp4', 1080, Transcoder.options, function(err){
     //TODO: Fix simultaneous encodes
