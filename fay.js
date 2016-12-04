@@ -29,13 +29,18 @@ var scpDefaults = {
 };
 
 
-//Starts the queue on start, and then once every hour.
-startQueue();
+
 //We start processing the downloaded.json files, they are sent to the encoding queue.
 //They're sent to the onDoneDownloading function, just like the episode does when a scp download is finished
 processDownloads();
-var minutes = 5, the_interval = minutes * 60 * 1000;
-setInterval(startQueue, the_interval);
+
+if(!botsan.config.settings.DEVELOPMENT){
+    //Starts the queue on start, and then once every hour.
+    startQueue();
+    var minutes = 5, the_interval = minutes * 60 * 1000;
+    setInterval(startQueue, the_interval);
+}
+
 
 
 function startQueue() {
@@ -274,58 +279,9 @@ function startEncoding(encodeObj, callback) {
     //Array so it can display more status for each episodes.
     botsan.updateData({Episode: encodeObj.Episode, Status: "Transcoding", Progress: 0});
 
-    if (encodeObj.Episode.parent.ffmpeg == null || encodeObj.Episode.parent.ffmpeg == false) {
-        //Write the time
-        appendToCC(`\r\n${botsan.getTime()}:\r\n`);
-        //Spawn CC through cmd
-        var ls = "";
-        if (botsan.os.platform() == "win32") {
-            ls = botsan.spawn("cmd", ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:" + botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality, "debug:true"], {detached: true});
-            //ls = botsan.spawn("cmd", ["/c"], { detached: true }); //Skip encode
-            var line = ["/c", "start", "/min", botsan.path.normalize(botsan.config.paths.CClocation), "SourceFolder:" + folderpath, "OutputFolder:" + botsan.config.paths.outputfolder, "TempFolder:" + botsan.config.paths.temp, "Prefix:" + encodeObj.Episode.parent.prefix, "Episode:" + encodeObj.Episode.episodeno, "FileIndex:" + encodeObj.index, "QualityBuff:True", "Resolution:" + encodeObj.Episode.parent.quality, "debug:true"].join(" ");
-            appendToCC(line);
-        }
-        //Spawn CC through shell
-        else if (botsan.os.platform() == "linux") {
+    var source = botsan.path.normalize(`${folderpath}/${encodeObj.Episode.title}`);
+    transcoder.run(source, encodeObj.Episode, callback);
 
-            var line = botsan.config.paths.MonoLocation + " " + botsan.config.paths.CClocation + " SourceFolder:" + folderpath + " OutputFolder:" + botsan.config.paths.outputfolder + " TempFolder:" + botsan.config.paths.temp + " Prefix:" + encodeObj.Episode.parent.prefix + " Episode:" + encodeObj.Episode.episodeno + " FileIndex:" + encodeObj.index + " Resolution:" + encodeObj.Episode.parent.quality + " ffmpeg:" + botsan.config.paths.ffmpeg + " mencoder:" + botsan.config.paths.mencoder + " mkvextract:" + botsan.config.paths.mkvextract + " mkvmerge:" + botsan.config.paths.mkvmerge + " debug:true";
-            //Write the line in the cc file.
-            appendToCC(line);
-            ls = botsan.spawn("sh", ['-c', line], {detached: true}); //Todo: Change to variables
-        }
-
-        ls.stdout.on('data', function (data) {
-            if (DEBUG) {
-                console.log('stdout: ' + data);
-            }
-            //appendToCC(data);
-        });
-
-        ls.stderr.on('data', function (data) {
-            //TODO: Show progress
-            //console.log('stderr: ' + data);
-            //appendToCC(data);
-        });
-        ls.on('error', function (err) {
-            if (err) {
-                console.log(err);
-                botsan.logError(err);
-            }
-        });
-
-        //Todo: If the process closes with a different code than 0, stop watching files and output error.
-        ls.on('close', function (code) {
-            var status = botsan.getDataStatus(encodeObj.Episode);
-            botsan.removeStrFromArr(status, "Transcoding");
-            botsan.updateData({Episode: encodeObj.Episode, Status: status, Progress: 0});
-
-            callback();
-            //All encodes done, callback to tell async we're finished and continue with next episode.
-        });
-    } else {
-        var source = botsan.path.normalize(`${folderpath}/${encodeObj.file}`);
-        transcoder.run(source, encodeObj.Episode, callback);
-    }
 }
 
 //Object array: [{filename, quality, Episode}]

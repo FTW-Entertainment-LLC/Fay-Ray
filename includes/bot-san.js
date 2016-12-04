@@ -461,7 +461,7 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
 }
 
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
-    if (!this.config.settings.NOTIFICATIONS) {
+    if (this.config === undefined || !this.config.settings.NOTIFICATIONS) {
         return false;
     }
     var channel = "245289486295105546";
