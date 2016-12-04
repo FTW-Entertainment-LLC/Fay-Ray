@@ -551,6 +551,16 @@ Botsan.prototype.checkCleanup = function checkCleanup() {
     }
 }
 
+Botsan.prototype.log = function log(str) {
+    //Todo:
+    //Check size of log,
+    //If it's larger than a certain size,
+    //Create a new one.
+    this.fs.appendFile('./log.txt', str, function (err) {
+        if (err) this.logError(err);
+    });
+}
+
 function deleteFile(fileObj, callback) {
     var index = fileObj.botsan.downloaded_list.indexOf(fileObj.download);
     if (index > -1) {

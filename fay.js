@@ -1,7 +1,6 @@
 var bsan = require('./includes/bot-san.js');
 var botsan = new bsan(false, true);
 var Transcoder = require('./includes/transcoder.js');
-var transcoder = new Transcoder(botsan);
 var socket = require('socket.io-client')(`${botsan.config.connection.address}:8888`, {reconnectionDelay: botsan.config.connection.reconnection_delay});
 botsan.writeData();
 botsan.startConsole();
@@ -174,6 +173,7 @@ function sftpDownload(object, callback) {
                 botsan.logError(err);
             botsan.updateData({Episode: object.episode, Status: "Downloading ", Progress: 0})
             botsan.createFoldersForFile(`${botsan.config.paths.downloads}/${object.download.filename}`);
+            //TODO: Get the download path from seedbox config
             sftp.fastGet(`${botsan.config.paths.seedbox}/torrents/${object.download.filename}`, `${botsan.config.paths.downloads}/${object.download.filename}`, {
                 step: function (total_transferred, chunk, total) {
                     botsan.updateData({
@@ -199,67 +199,46 @@ function sftpDownload(object, callback) {
 
 function onDoneDownloading(Episode) {
     botsan.updateData({Episode: Episode, Status: "Download Finished", Progress: 0});
-    var parsedPath = botsan.path.parse(botsan.path.normalize(botsan.path.resolve(botsan.path.join(botsan.config.paths.downloads, Episode.title))));
-    botsan.fs.readdir(parsedPath.dir, function (err, files) {
-        if (err) {
-            botsan.logError(err);
-            throw (err);
-        }
-        var index = 0;
-        /*Look for the file in the whole torrents folder, then
-         * get the index for it, and send it off to the encode queue */
-        for (index; index < files.length; index++) {
-            if (files[index] == Episode.title) {
-                in_encode_queue.push(Episode.title);
-                encode_queue.push({Episode: Episode, index: index, file: files[index]}, Episode.episodeno, function () {
-                    in_encode_queue.splice(in_encode_queue.indexOf(Episode.title), 1);
-                });
-                botsan.updateData({Episode: Episode, Status: "In transcoding queue", Progress: 0});
-                break;
-            }
-        }
-        files.sort(localeCompare);
-        var index = files.indexOf(botsan.path.basename(Episode.title));
-        in_encode_queue.push(Episode.title);
-        encode_queue.push({Episode: Episode, index: index, dir: parsedPath.dir}, Episode.episodeno, function () {
-            in_encode_queue.splice(in_encode_queue.indexOf(Episode.title), 1);
-        });
-        botsan.updateData({Episode: Episode, Status: "In transcoding queue", Progress: 0});
-    });
-}
-function localeCompare(a, b) {
-    return a.localeCompare(b)
-};
 
-//encodeObj: {Episode, index, file}
-function startEncoding(encodeObj, callback) {
+    in_encode_queue.push(Episode.title);
+    encode_queue.push(Episode, Episode.episodeno, function () {
+        in_encode_queue.splice(in_encode_queue.indexOf(Episode.title), 1);
+    });
+    botsan.updateData({Episode: Episode, Status: "In transcoding queue", Progress: 0});
+}
+
+function startEncoding(Episode, callback) {
 
     var folderpath = botsan.path.normalize(botsan.path.resolve(botsan.config.paths.downloads));
-
+    var source = botsan.path.normalize(`${folderpath}/${Episode.title}`);
+    if(!botsan.fs.existsSync(source)){
+        //TODO: Delete it from downloads if it doesn't exist.
+        botsan.logError(new Error(`File ${source} doesn't exist, removing from downloaded.json`));
+        callback();
+        return;
+    }
     //destination, Episode, index
     //Gets the full path
 
-    //TODO: Check that the file really exists
-
     var encoding_eps = [];
-    var resolutions = transcoder.getResolutions(encodeObj.Episode.parent.quality);
-
+    var transcoder = new Transcoder(botsan);
+    var resolutions = transcoder.getResolutions(Episode.parent.quality);
 
     for (var i = 0; i < resolutions.length; i++) {
         encoding_eps.push({
-            filename: botsan.createFilename(encodeObj.Episode.parent.prefix, encodeObj.Episode.episodeno, resolutions[i]),
+            filename: botsan.createFilename(Episode.parent.prefix, Episode.episodeno, resolutions[i]),
             quality: resolutions[i],
-            Episode: encodeObj.Episode
+            Episode: Episode
         });
     }
 
     //Check if the files exists in the encoded folder before continuing.
-    var founds = []
+    var founds = 0;
 
     encoding_eps.forEach(function (i) {
         try {
             if (botsan.fs.statSync(botsan.path.normalize(`./${botsan.config.paths.outputfolder}/${i.filename}`)).isFile()) {
-                founds.push(1); //This is just a counter.
+                founds++;
                 sendToFTPQueue(i);
             }
         } catch (err) {
@@ -269,18 +248,18 @@ function startEncoding(encodeObj, callback) {
 
     });
 
-    if (founds.length == encoding_eps.length) {
+    if (founds == encoding_eps.length) {
         //If there's no missing episode, then we don't need to encode.
         //TODO: Only encode the missing resolution.
         callback();
         return;
     }
 
-    //Array so it can display more status for each episodes.
-    botsan.updateData({Episode: encodeObj.Episode, Status: "Transcoding", Progress: 0});
 
-    var source = botsan.path.normalize(`${folderpath}/${encodeObj.Episode.title}`);
-    transcoder.run(source, encodeObj.Episode, callback);
+    botsan.updateData({Episode: Episode, Status: "Transcoding", Progress: 0});
+
+
+    transcoder.run(source, Episode, callback);
 
 }
 
@@ -317,16 +296,6 @@ function sendToFTPQueue(encodedEp) {
     ftp_queue.push(encodedEp, function () {
         in_ftp_queue.splice(in_ftp_queue.indexOf(encodedEp.Episode.title), 1);
         //console.log(`removed ${encodedEp.filename} from upload queue.`);
-    });
-}
-
-function appendToCC(str) {
-    //Todo:
-    //Check size of error log,
-    //If it's larger than a certain size,
-    //Create a new one.
-    botsan.fs.appendFile('./cc.txt', str, function (err) {
-        if (err) throw err;
     });
 }
 
@@ -406,7 +375,7 @@ function upload_file(uplObj, callback) {
         }
 
 
-        //This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded. TODO
+        //TODO: This checks if the highest quality is uploaded, but I need to make it check if all files are uploaded.
         if (uplObj.quality == uplObj.Episode.parent.quality) {
             botsan.sendNotification(`@everyone ${uplObj.Episode.parent.title} #${uplObj.Episode.episodeno} was uploaded to Zeus`);
             uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
