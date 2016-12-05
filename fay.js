@@ -429,7 +429,9 @@ socket.on('reconnect_attempt', function (num) {
 
 socket.on('connect', function () {
     botsan.updateAppData({message: "Connected to Ray", id: -2});
-    socket.emit('identification', {name: botsan.os.hostname()});
+    var n = botsan.os.hostname();
+    n = n.substring(0, n.indexOf(".")); //Truncate string at first dot
+    socket.emit('identification', {name: n});
 
 });
 
