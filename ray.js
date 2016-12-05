@@ -1,5 +1,5 @@
 var bsan = require('./includes/bot-san.js');
-var botsan = new bsan(true);
+var botsan = new bsan(true, false);
 const readChunk = require('read-chunk'); // npm install read-chunk
 const fileType = require('file-type');
 const array = require('locutus/php/array');
@@ -38,7 +38,7 @@ function checkNyaa(series, callback) {
     req.on('response', function (res) {
         var stream = this;
 
-        if (res.statusCode != 200) return this.emit('error', new Error('Bad status code'));
+        if (res.statusCode != 200) return this.emit('error', new Error(`Bad status code: ${res.statusCode} (${nyaaurl})`));
 
         stream.pipe(feedparser);
     });
@@ -220,8 +220,8 @@ function onTorrentAdd(torrent, Episode, callback) {
                         Episode.parent.finished = true;
                         botsan.saveSettings(botsan.anime_list);
                     }
-                    callback();
                 }
+                callback();
 
             });
         }
