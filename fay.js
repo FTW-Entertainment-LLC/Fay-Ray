@@ -429,7 +429,7 @@ socket.on('reconnect_attempt', function (num) {
 
 socket.on('connect', function () {
     botsan.updateAppData({message: "Connected to Ray", id: -2});
-    socket.emit('identification', {name: botsan.config.settings.name});
+    socket.emit('identification', {name: botsan.os.hostname()});
 
 });
 
