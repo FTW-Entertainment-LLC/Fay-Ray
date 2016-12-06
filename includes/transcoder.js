@@ -1,8 +1,8 @@
 /**
  * Created by Enic on 2016-11-03.
  */
+"use strict"
 function Transcoder(botsan) {
-    "use strict"
     this.ffmpeg = require('fluent-ffmpeg');
     this.botsan = botsan;
     //medium preset is normal
@@ -30,7 +30,8 @@ Transcoder.prototype.processFile = function processFile(file_in, options, callba
 
     var videos = [];
     var audios = [];
-    var subtitles = []; //TODO
+    //subtitles is currently only used to know if it should burn it.
+    var subtitles = [];
     this.pass = 1;
 
     this.ffmpeg.ffprobe(file_in, function (err, metadata) {
@@ -43,12 +44,17 @@ Transcoder.prototype.processFile = function processFile(file_in, options, callba
                 audios.push(metadata.streams[i]);
             }
             if (metadata.streams[i].codec_type == 'subtitle') {
-                //TODO: See above. Otherwise unnecessary right now.
+                subtitles.push(metadata.streams[i]);
             }
         }
 
         if (videos.length > 1) {
             console.log("There's more than one video in this stream");
+        }
+        if(subtitles.length==0){
+            options.subtitle = false;
+        } else {
+            options.subtitle = true;
         }
 
         //Set the bitrate to be used.
@@ -118,6 +124,7 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
         default:
             callback(new Error('No supported resolution value'));
     }
+
     this.processFile(file_in, options, function () {
         var command = new ffmpeg(file_in)
             .videoBitrate(options.bitrate)
@@ -127,7 +134,7 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
             .addOptions(["-sn"])
             .size(`${options.width}x${options.height}`)
             .format('mp4')
-            .addOptions(["-passlogfile", options.passlog+options.transcoder.botsan.path.posix.basename(file_out)])
+            .addOptions(["-passlogfile", options.passlog+options.transcoder.botsan.path.parse(file_out).name])
             .addOptions(["-preset", options.preset])
             //.addOptions(["-t", 10]) //encode number seconds only
             .addOptions("-tune animation")
@@ -135,15 +142,11 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
             //.addOptions(["-report"])
             //escape hell for all characters in quote ":()[],"
             //[ has to be spawned to ffmpeg as '['
-            .videoFilters({
-                filter: "subtitles",
-                options: `${file_in.replace(/\\/g, "/").replace(/:/g, "\\\\:").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\[/g, "\'\[\'").replace(/\]/g, "\'\]\'").replace(/,/g, "\\,")}`
-            })
             .on('error', function(err){transcoder.FFmpegOnError(err)})
             .on('progress', function(p){transcoder.FFmpegOnProgress(p)})
             .on('start', function(cmd){transcoder.FFmpegOnStart(cmd)})
             .on('end', function () {
-                this,lastprogress_frm = null;
+                this.lastprogress_frm = null;
                 clearInterval(this.pass_interval);
                 options.transcoder.botsan.fs.rename(file_out, `${options.transcoder.botsan.config.paths.outputfolder}/${options.transcoder.botsan.path.basename(file_out)}`, function(err){
                     if(err)
@@ -155,6 +158,13 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
         if(options.transcoder.botsan.os.platform() == "linux"){
             nullpath = '/dev/null';
         }
+        if(options.subtitle){
+            command.videoFilters({
+                filter: "subtitles",
+                options: `${file_in.replace(/\\/g, "/").replace(/:/g, "\\\\:").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\[/g, "\'\[\'").replace(/\]/g, "\'\]\'").replace(/,/g, "\\,")}`
+            });
+        }
+
         command.clone()
             .addOptions(["-pass", "1"])
             .on('error', function(err){transcoder.FFmpegOnError(err)})
@@ -229,7 +239,7 @@ function restartFFmpeg(mylastprogress_frm, lastprogress_frm) {
 }
 
 Transcoder.prototype.FFmpegOnError = function FFmpegOnError(err) {
-    console.log('an error happened: ' + err.message);
+    this.botsan.logError(err);
 }
 
 Transcoder.prototype.FFmpegOnProgress = function FFmpegOnProgress(progress) {
