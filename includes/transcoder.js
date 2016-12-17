@@ -72,14 +72,14 @@ Transcoder.prototype.processFile = function processFile(file_in, options, callba
  */
 Transcoder.prototype.getResolutions = function getResolutions(resolution){
     var resolutions = [];
-    if(resolution===1080){
-        resolutions.push(1080);
+    if(resolution>=480){
+        resolutions.push(480);
     }
     if(resolution>=720){
         resolutions.push(720);
     }
-    if(resolution>=480){
-        resolutions.push(480);
+    if(resolution===1080){
+        resolutions.push(1080);
     }
     return resolutions;
 }
@@ -140,8 +140,6 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
             .addOptions("-tune animation")
             .addOptions("-threads 24")
             //.addOptions(["-report"])
-            //escape hell for all characters in quote ":()[],"
-            //[ has to be spawned to ffmpeg as '['
             .on('error', function(err){transcoder.FFmpegOnError(err)})
             .on('progress', function(p){transcoder.FFmpegOnProgress(p)})
             .on('start', function(cmd){transcoder.FFmpegOnStart(cmd)})
@@ -161,6 +159,8 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
         if(options.subtitle){
             command.videoFilters({
                 filter: "subtitles",
+                //escape hell for all characters in quote ":()[],"
+                //[ has to be spawned to ffmpeg as '['
                 options: `${file_in.replace(/\\/g, "/").replace(/:/g, "\\\\:").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/\[/g, "\'\[\'").replace(/\]/g, "\'\]\'").replace(/,/g, "\\,")}`
             });
         }
@@ -176,7 +176,6 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
                 clearInterval(this.pass_interval);
                 command.addOptions(["-pass", "2"]).save(file_out);
             })
-            //On linux, use /dev/null
             .save(nullpath);
 
     });
