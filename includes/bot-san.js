@@ -569,6 +569,7 @@ Botsan.prototype.log = function log(str) {
     this.fs.appendFile('./log.txt', str, function (err) {
         if (err) this.logError(err);
     });
+    console.log(str);
 }
 
 function deleteFile(fileObj, callback) {

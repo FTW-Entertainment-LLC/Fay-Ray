@@ -6,7 +6,7 @@ function Transcoder(botsan) {
     this.ffmpeg = require('fluent-ffmpeg');
     this.botsan = botsan;
     //medium preset is normal
-    this.options = {bitrate: 0, preset: 'medium', passlog: `${botsan.config.paths.temp}/`, width: 854, height: 480, transcoder: this};
+    this.options = {bitrate: 0, audioBitrate: 128, preset: 'medium', passlog: `${botsan.config.paths.temp}/`, width: 854, height: 480, transcoder: this};
     this.episode = null;
     this.transcode_queue = botsan.async.queue(this.transcode_task, 1);
     this.pass_interval = null;
@@ -32,10 +32,9 @@ Transcoder.prototype.processFile = function processFile(file_in, options, callba
     var audios = [];
     //subtitles is currently only used to know if it should burn it.
     var subtitles = [];
-    this.pass = 1;
+    const botsan = this.botsan;
 
     this.ffmpeg.ffprobe(file_in, function (err, metadata) {
-        //console.dir(metadata);
         for (var i = 0; i < metadata.format.nb_streams; i++) {
             if (metadata.streams[i].codec_type == 'video') {
                 videos.push(metadata.streams[i]);
@@ -49,7 +48,7 @@ Transcoder.prototype.processFile = function processFile(file_in, options, callba
         }
 
         if (videos.length > 1) {
-            console.log("There's more than one video in this stream");
+            this.botsan.log("There's more than one video in this stream");
         }
         if(subtitles.length==0){
             options.subtitle = false;
@@ -60,7 +59,29 @@ Transcoder.prototype.processFile = function processFile(file_in, options, callba
         //Set the bitrate to be used.
         //TODO: FFMPEG can calculate width automatically, so I can remove the width option. However this calculation requires the width. Calculate the width by the aspect ratio from the ffprobe data
         options.bitrate = Math.ceil(options.width * options.height / 678);
-        //options.bitrate = metadata.format.bit_rate;
+
+        //This check currently only checks the BPS tag written by mkvtoolnix.
+        //fluent-ffmpeg won't return a bitrate, so I couldn't use that value with the file I was testing with.
+        //TODO: See above, check the bitrate when fluent-ffmpeg returns a value.
+        if(videos.length>0){
+            let vBPS = 0;
+            let aBPS = 0;
+            if(videos[0].tags.BPS){
+                vBPS = videos[0].tags.BPS / 1000;
+            }
+            //TODO: Choose from selected audio stream, when that's supported (See further above)
+            if(audios[0].tags.BPS){
+                aBPS = audios[0].tags.BPS / 1000;
+            }
+
+            if(vBPS > 0 && options.bitrate > vBPS){
+                options.bitrate = vBPS;
+            }
+            if(aBPS > 0 && 128 > aBPS){
+                options.audioBitrate = aBPS;
+            }
+        }
+
         callback();
 
     });
@@ -129,7 +150,7 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
         var command = new ffmpeg(file_in)
             .videoBitrate(options.bitrate)
             .videoCodec('libx264')
-            .audioBitrate('128k')
+            .audioBitrate(`${options.audioBitrate}k`)
             .audioCodec('aac')
             .addOptions(["-sn"])
             .size(`${options.width}x${options.height}`)
@@ -146,7 +167,10 @@ Transcoder.prototype.transcode = function transcode(file_in, file_out, resolutio
             .on('end', function () {
                 this.lastprogress_frm = null;
                 clearInterval(this.pass_interval);
-                options.transcoder.botsan.fs.rename(file_out, `${options.transcoder.botsan.config.paths.outputfolder}/${options.transcoder.botsan.path.basename(file_out)}`, function(err){
+                const oufolder = options.transcoder.botsan.config.paths.outputfolder;
+                const fileout = options.transcoder.botsan.path.basename(file_out);
+                const target = `${oufolder}/${fileout}`;
+                options.transcoder.botsan.fs.rename(file_out, target, function(err){
                     if(err)
                         options.transcoder.botsan.logError(err);
                     callback(resolution);
