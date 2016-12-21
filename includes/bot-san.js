@@ -13,6 +13,7 @@ function Botsan(host, clean) {
     this.events = require("events");
     this.FClient = require('ftp');
     this.moment = require('moment');
+    const readline = require('readline');
     this.os = require('os');
     //TODO change to async retry
     this.retry = require('retry');
@@ -25,6 +26,10 @@ function Botsan(host, clean) {
     this.cleanup_queue = this.async.queue(deleteFile, 1);
     this.host = host;
 
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
 
     const EventEmitter = require('events');
     class MyEmitter extends EventEmitter {
@@ -66,6 +71,10 @@ function Botsan(host, clean) {
         var minutes = 60, the_interval = minutes * 60 * 1000;
         setInterval(function() { botsan.checkCleanup(); }, the_interval);
     }
+    rl.on('SIGCONT', () => {
+        this.writeData();
+    });
+
 }
 
 Botsan.prototype.Episode = function Episode(title, torrenturl, episodeno, parent) {
@@ -215,6 +224,7 @@ Botsan.prototype.getTime = function getTime() {
 
 Botsan.prototype.startConsole = function startConsole() {
     var t = this;
+    t.writeData();
     setInterval(function () {
         t.writeData();
     }, 5000);
@@ -559,6 +569,7 @@ Botsan.prototype.log = function log(str) {
     this.fs.appendFile('./log.txt', str, function (err) {
         if (err) this.logError(err);
     });
+    console.log(str);
 }
 
 function deleteFile(fileObj, callback) {

@@ -22,6 +22,16 @@ Just make sure you're not working on something someone else is, see the issues f
 Assign yourself to a issue before you start working on it.
 
 Make sure to create tests for every new function you make. (See the test folder)
+
+#### Coding style:
+As of 2016-12-18 I use this coding style:
+
+
+http://nodeguide.com/style.html
+
+With some exceptions, when declaring variables, use `let` and `const` instead of `var`
+
+Older code does however not use this style and has to be accommodated to ASAP.
 ### Running tests
 To run the tests, make sure you have the npm dependencies installed. (run `npm install`)
 
