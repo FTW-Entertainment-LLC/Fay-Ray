@@ -1,0 +1,6 @@
+{
+    "source": {
+        "include": [".", "models", "includes"],
+		"exclude": ["out",".git","downloads",".idea","example","node:modules"]
+    }
+}
