@@ -17,21 +17,26 @@ require('../models/Episode.js');
  * @property {Object} path
  * @property {Object} colors
  * @property {Object} events
- * @property {Object} FClient           - FTP Client
+ * @property {Object} FClient             - FTP Client
  * @property {Object} moment
  * @property {Object} readline
  * @property {Object} os
  * @property {Object} retry
  * @property {Object} date
- * @property {Object} tclient           - WebTorrent client
+ * @property {Object} tclient             - WebTorrent client
  * @property {Object[]} nyaa_queue
  * @property {Object[]} torrent_queue
  * @property {string[]} in_torrent_queue
  * @property {Object[]} downloaded_list
  * @property {Object[]} cleanup_queue
- * @property {Object[]} host            - From param host
- * @property {Object} myEmitter         - Event emitter
- *
+ * @property {Object[]} host              - From param host
+ * @property {Object} myEmitter           - Event emitter
+ * @property {Object} discord
+ * @property {Object[]} application_status
+ * @property {Object[]} episode_status
+ * @property {Object[]} last_refresh
+ * @property {Object} config
+ * @property {Object[]} anime_list
  */
 function Botsan(host, clean) {
   "use strict";
@@ -152,7 +157,7 @@ Botsan.prototype.transcode = function transcode(uploadsID, filename, episodeno, 
  * @author Hani Mayahi <hani.mayahi94@gmail.com>
  * @since 1.0.0
  * @param {Object} Obj
- * @returns {null|Object[]}
+ * @returns {(null|Object[])}
  */
 Botsan.prototype.getDataStatus = function getDataStatus(Obj) {
   for (i = 0; i < this.episode_status.length; i++) {
@@ -175,10 +180,9 @@ Botsan.prototype.getDataStatus = function getDataStatus(Obj) {
  * @param {string} oldstring  - The string that should be replaced
  * @param {string} newstring  - What the string should be replaced as
  */
-Botsan.prototype.replaceStrInArr = function replaceStrInArr(
-  array,
-  oldstring,
-  newstring) {
+Botsan.prototype.replaceStrInArr = function replaceStrInArr(array,
+                                                            oldstring,
+                                                            newstring) {
   var index = array.indexOf(oldstring);
   if (index >= 0) {
     array[index] = newstring;
@@ -208,7 +212,7 @@ Botsan.prototype.removeStrFromArr = function replaceStrInArr(array, string) {
  * @param {Object[]} arr
  * @param {string} arr.filename
  * @param {string} filename
- * @returns {null|Object}
+ * @returns {(null|Object)}
  */
 Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename) {
   var found = null;
@@ -220,7 +224,15 @@ Botsan.prototype.getObjByFilename = function getObjByFilename(arr, filename) {
   }
   return found;
 }
-
+/**
+ * TODO: Console model
+ * This updates or adds the episode console obj to the which is used to refresh the
+ * console.
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object} Obj
+ * @returns {number}
+ */
 Botsan.prototype.updateData = function updateData(Obj) {
   var found = false;
   var counter;
@@ -245,7 +257,12 @@ Botsan.prototype.updateData = function updateData(Obj) {
   this.writeData();
   return i;
 }
-
+/**
+ * Clears a episode console obj
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object} Obj
+ */
 Botsan.prototype.clearData = function clearData(Obj) {
   for (i = 0; i < this.episode_status.length; i++) {
     if ((Obj.torrenturl == null && this.episode_status[i].Episode.title == Obj.title) ||
@@ -255,7 +272,12 @@ Botsan.prototype.clearData = function clearData(Obj) {
     }
   }
 }
-
+/**
+ * Updates or adds a application console obj
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object} Obj
+ */
 Botsan.prototype.updateAppData = function updateAppData(Obj) {
   var index = -1;
   var counter;
@@ -277,12 +299,22 @@ Botsan.prototype.updateAppData = function updateAppData(Obj) {
   this.writeData();
 }
 
+/**
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @returns {string}
+ */
 Botsan.prototype.getTime = function getTime() {
   var d = new Date();
   d.setUTCHours(d.getUTCHours() + 2);
   return d.toISOString().replace(/T/, ' ').replace(/\..+/, '');
 }
 
+/**
+ * Starts the console
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ */
 Botsan.prototype.startConsole = function startConsole() {
   var t = this;
   t.writeData();
@@ -290,7 +322,12 @@ Botsan.prototype.startConsole = function startConsole() {
     t.writeData();
   }, 5000);
 }
-
+/**
+ * Outputs the console data.
+ * TODO: Change function name to output
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ */
 Botsan.prototype.writeData = function writeData() {
   var now = new Date().getTime();
   var last_refresh = this.last_refresh;
@@ -301,11 +338,11 @@ Botsan.prototype.writeData = function writeData() {
   }
 
   /*if (this.os.platform() == "win32") {
-    process.stdout.write("\u001b[2J\u001b[0;0H");
-  }
-  else if (this.os.platform() == "linux") {
-    process.stdout.write('\033[2J\033[1;1H');
-  }*/
+   process.stdout.write("\u001b[2J\u001b[0;0H");
+   }
+   else if (this.os.platform() == "linux") {
+   process.stdout.write('\033[2J\033[1;1H');
+   }*/
 
   process.stdout.write('\x1Bc'); //TODO: Check if this works on linux
 
@@ -337,7 +374,14 @@ Botsan.prototype.writeData = function writeData() {
   this.myEmitter.emit('writeData');
 
 }
-
+/**
+ * Compares application output obj
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object} a
+ * @param {Object} b
+ * @returns {number}
+ */
 Botsan.prototype.compareAppData = function compareAppData(a, b) {
   if (a.id < b.id)
     return -1;
@@ -346,6 +390,14 @@ Botsan.prototype.compareAppData = function compareAppData(a, b) {
   return 0;
 }
 
+/**
+ * Comapres episode output obj
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object} a
+ * @param {Object} b
+ * @returns {number}
+ */
 Botsan.prototype.compareEpisodeData = function compareEpisodeData(a, b) {
   if (a.Episode.title < b.Episode.title)
     return -1;
@@ -358,6 +410,12 @@ Botsan.prototype.compareEpisodeData = function compareEpisodeData(a, b) {
   return 0;
 }
 
+/**
+ * Logs error and send them to discord
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.1.0
+ * @param err
+ */
 Botsan.prototype.logError = function logError(err) {
 
   var message = "";
@@ -394,7 +452,13 @@ Botsan.prototype.logError = function logError(err) {
 
   this.sendNotification(message, true);
 }
-
+/**
+ * Adds a new series to the torrent queue.
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.1.0
+ * @param {Object} series   - Anime Object
+ * @returns {boolean}
+ */
 Botsan.prototype.addNewSeries = function addNewSeries(series) {
   if (this.getAnimeById(series.uploadsID))
     return false;
@@ -416,6 +480,11 @@ Botsan.prototype.addNewSeries = function addNewSeries(series) {
   return true;
 }
 
+/**
+ * Loads all settings
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.1.0
+ */
 Botsan.prototype.loadSettings = function loadSettings() {
   if (this.fs.existsSync(this.path.normalize("./savefile.json"))) {
     try {
@@ -463,6 +532,11 @@ Botsan.prototype.loadSettings = function loadSettings() {
   this.myEmitter.emit('ready');
 }
 
+/**
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object[]} anime_list     - Anime obj array list
+ */
 Botsan.prototype.saveSettings = function saveSettings(anime_list) {
   var outputFilename = this.path.normalize('./savefile.json');
 
@@ -474,7 +548,12 @@ Botsan.prototype.saveSettings = function saveSettings(anime_list) {
     }
   });
 }
-
+/**
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {Object[]} downloaded_list
+ * @param callback
+ */
 Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callback) {
   var outputFilename = this.path.normalize('./downloaded.json');
   this.fs.writeFile(outputFilename, JSON.stringify(downloaded_list, null, 4), function (err, test) {
@@ -485,7 +564,14 @@ Botsan.prototype.writeDownloads = function writeDownloads(downloaded_list, callb
     callback();
   });
 }
-
+/**
+ * Writes the object array to transcodes.json
+ * I don't think I'm using this, why's this here?
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.1.0
+ * @param {Object[]} transcodes_list  - Object array
+ * @param {function} callback         - Callback when done
+ */
 Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, callback) {
   var outputFilename = this.path.normalize('./transcodes.json');
   this.fs.writeFile(outputFilename, JSON.stringify(transcodes_list, null, 4), function (err) {
@@ -497,7 +583,13 @@ Botsan.prototype.writeTranscodes = function writeTranscodes(transcodes_list, cal
   });
 
 }
-
+/**
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {string} filename   - Filename
+ * @param {string} json       - JSON string
+ * @returns {(Object|null)}
+ */
 Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, json) {
   var data = require(json);
   for (var key in data) {
@@ -508,7 +600,14 @@ Botsan.prototype.getDownloadFromFile = function getDownloadFromFile(filename, js
   return null;
 
 }
-
+/**
+ * Returns a download by matching uploads id and episode number.
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {string} uploadsID  - AnimeFTW Uploads board ID
+ * @param {number} epno       - Episode number
+ * @returns {(null|Object)}
+ */
 Botsan.prototype.getDownload = function getDownload(uploadsID, epno) {
   for (var i = 0; i < this.downloaded_list.length; i++) {
     if (this.downloaded_list[i].uploadsID == uploadsID && this.downloaded_list[i].episodeno == epno) {
@@ -517,7 +616,15 @@ Botsan.prototype.getDownload = function getDownload(uploadsID, epno) {
   }
   return null;
 }
-
+/**
+ * Creates a filename for animeftw
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {string} prefix
+ * @param {number} episode
+ * @param {number} resolution   - 480, 720 or 1080
+ * @returns {(null|string)}
+ */
 Botsan.prototype.createFilename = function createFilename(prefix, episode, resolution) {
   if (!prefix)
     return null;
@@ -533,6 +640,16 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
   return `${prefix}${res}_${episode}_ns.mp4`;
 }
 
+/**
+ * Sends notification to Discord.
+ * Should be replaced to just update on the uploads board in the future
+ * Then the uploads board will notify discord for changes.
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {string} message
+ * @param {boolean} error
+ * @returns {boolean}       - True on success, false on fail
+ */
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
   if (this.config === undefined || !this.config.settings.NOTIFICATIONS) {
     return false;
@@ -549,7 +666,7 @@ Botsan.prototype.sendNotification = function sendNotification(message, error) {
       message: message
     }, function (err) {
       if (operation.retry(err)) {
-        return;
+        return false;
       }
       return true;
     });
@@ -557,7 +674,11 @@ Botsan.prototype.sendNotification = function sendNotification(message, error) {
 
 
 }
-
+/**
+ * Function for saving users. Used for the admin placeholder site to
+ * track who submits what.
+ * @param {Object} users
+ */
 Botsan.prototype.saveUsers = function saveUsers(users) {
   this.fs.writeFile("./users.json", JSON.stringify(users, null, 4), function (err) {
     if (err) {
@@ -566,6 +687,12 @@ Botsan.prototype.saveUsers = function saveUsers(users) {
   });
 }
 
+/**
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.0.0
+ * @param {number} id
+ * @returns {(null|Object)}
+ */
 Botsan.prototype.getAnimeById = function getAnimeById(id) {
   for (var key in this.anime_list) {
     if (this.anime_list[key].uploadsID == id) {
@@ -575,7 +702,12 @@ Botsan.prototype.getAnimeById = function getAnimeById(id) {
   return null;
 }
 
-//This function creates the path except the last segment.
+/**
+ * This function creates the path except the last segment.
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.1.0
+ * @param {string} path
+ */
 Botsan.prototype.createFoldersForFile = function createFoldersForFile(path) {
   var separated = this.path.normalize(path).split(this.path.sep);
   var pathnow = "";
@@ -596,7 +728,9 @@ Botsan.prototype.createFoldersForFile = function createFoldersForFile(path) {
   }
 }
 /**
- *
+ * Callback function for fs.stat, cleans the downloaded.json array and files.
+ * @author Hani Mayahi <hani.mayahi94@gmail.com>
+ * @since 1.1.0
  * @param {string} file
  * @param {object} download
  * @param {Botsan} botsan
