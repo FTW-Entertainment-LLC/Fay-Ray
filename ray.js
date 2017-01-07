@@ -143,7 +143,7 @@ function startQueue() {
       var download = botsan.getDownload(botsan.anime_list[i].uploadsID, parseInt(diff[j]));
       if (!download)
         continue;
-      var episode = Episode(download.filename, null, parseInt(diff[j]), botsan.anime_list[i]);
+      var episode = new Episode(download.filename, null, parseInt(diff[j]), botsan.anime_list[i]);
       transcode_queue.push({episode: episode, download: download}, 0, onTranscodeFinish);
     }
     //}
