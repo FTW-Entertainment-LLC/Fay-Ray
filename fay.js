@@ -529,6 +529,7 @@ socket.on('episode', function onReceiveEncode(data) {
   const download = data.download;
   const parent = botsan.getAnimeById(episode.parent);
   if (!parent) {
+    socket.emit('getAnime', episode.parent);
     socket.on('Anime', function (anime) {
       episode.parent = anime;
       Download(episode, download);
