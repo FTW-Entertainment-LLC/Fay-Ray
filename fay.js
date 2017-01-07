@@ -1,8 +1,8 @@
-var bsan = require('./includes/bot-san.js');
-require('../models/Episode.js');
-var botsan = new bsan(false, true);
-var Transcoder = require('./includes/transcoder.js');
-var socket = require('socket.io-client')
+const bsan = require('./includes/bot-san.js');
+const Episode = require('./models/Episode.js');
+const botsan = new bsan(false, true);
+const Transcoder = require('./includes/transcoder.js');
+const socket = require('socket.io-client')
 (`${botsan.config.connection.address}:8888`, {
   reconnectionDelay: botsan.config.connection.reconnection_delay
 });
@@ -51,11 +51,6 @@ var scpDefaults = {
 //They're sent to the onDoneDownloading function, just like the episode does
 // when a scp download is finished
 //processDownloads();
-
-
-function onReceiveEncode(episode) {
-
-}
 
 
 /*function startQueue() {
@@ -112,7 +107,7 @@ function onReceiveEncode(episode) {
  anime.finished_episodes = [];
  botsan.anime_list.push(anime);
  myanime = anime;
- botsan.saveSettings(botsan.anime_list);
+ botsan.saveAnime();
  }
  if (botsan.getAnimeById(download.uploadsID)) {
  if (botsan.getAnimeById(download.uploadsID).finished_episodes.indexOf(parseInt(download.episodeno, 10 /*base 10*//*)) != -1) {
@@ -149,7 +144,7 @@ function processDownloads() {
         anime.finished_episodes = [];
         botsan.anime_list.push(anime);
         myanime = anime;
-        botsan.saveSettings(botsan.anime_list);
+        botsan.saveAnime();
       }
       if (myanime.finished_episodes.indexOf(
           parseInt(download.episodeno, 10)) != -1) {
@@ -188,6 +183,14 @@ function getSavefileDataById(id) {
   return null;
 }
 
+/**
+ *
+ * @param object
+ * @param object.episode - Episode
+ * @param object.download - Download
+ *
+ * @param callback
+ */
 function sftpDownload(object, callback) {
   var Client = require('ssh2').Client;
   var conn = new Client();
@@ -452,7 +455,7 @@ function upload_file(uplObj, callback) {
       uplObj.Episode.parent.finished_episodes.sort(function (a, b) {
         return a - b
       });
-      botsan.saveSettings(botsan.anime_list);
+      botsan.saveAnime();
       setTimeout(function () {
         botsan.clearData(uplObj.Episode);
       }, 3600000); //Clear after 1 hour
@@ -505,8 +508,10 @@ socket.on('reconnect_attempt', function (num) {
 
 socket.on('connect', function () {
   botsan.updateAppData({message: "Connected to Ray", id: -2});
-  var n = botsan.os.hostname();
-  n = n.substring(0, n.indexOf(".")); //Truncate string at first dot
+  let n = botsan.os.hostname();
+  const period = n.indexOf(".");
+  if(period>=0)
+    n = n.substring(0, period); //Truncate string at first dot
   socket.emit('identification', {
     name: n,
     queuelength: encode_queue.length() + download_queue.length(),
@@ -519,12 +524,30 @@ socket.on('connect', function () {
   }, 1000);
 });
 
-socket.on('episode', function (data) {
-  var parent = botsan.getAnimeById(data.parent);
+socket.on('episode', function onReceiveEncode(data) {
+  const episode = data.episode;
+  const download = data.download;
+  const parent = botsan.getAnimeById(episode.parent);
   if (!parent) {
-    socket.emit('getAnime', data.parent);
+    socket.on('Anime', function (anime) {
+      episode.parent = anime;
+      Download(episode, download);
+    });
+  } else {
+    episode.parent = parent;
+    Download(episode, download);
   }
+  //TODO: Send the download object in data.
 });
+
+
+
+function Download(episode, download){
+  download_queue.push({download: download, episode: episode}, episode.episodeno, function () {
+    //Remove it from in_download_queue when done.
+    in_download_queue.splice(in_download_queue.indexOf(episode.title), 1);
+  });
+}
 
 socket.on('disconnect', function () {
   botsan.updateAppData({message: "Disconnected from Ray", id: -2});

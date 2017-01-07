@@ -18,7 +18,7 @@ if (!botsan.fs.existsSync(botsan.path.normalize(botsan.config.paths.downloads)))
 
 botsan.nyaa_queue = botsan.async.queue(checkNyaa, botsan.config.settings.SIMULTANEOUS_NYAA_CHECKS);
 botsan.torrent_queue = botsan.async.queue(downloadEpisodes, botsan.config.settings.SIMULTANEOUS_DOWNLOADS);
-var transcode_queue = botsan.async.priorityQueue(sendEpisodeToTranscode, 1); //Concurrency is changed depending on amount of connected encoding nodes.
+var transcode_queue = botsan.async.priorityQueue(transcodeEpisode, 1); //Concurrency is changed depending on amount of connected encoding nodes.
 var current_downloaded_articles = [];
 
 
@@ -144,7 +144,7 @@ function startQueue() {
       if (!download)
         continue;
       var episode = Episode(download.filename, null, parseInt(diff[j]), botsan.anime_list[i]);
-      transcode_queue.push(episode, 0, onTranscodeFinish);
+      transcode_queue.push({episode: episode, download: download}, 0, onTranscodeFinish);
     }
     //}
   }
@@ -230,7 +230,7 @@ function onTorrentAdd(torrent, Episode, callback) {
         if (last_episode == file.path) {
           if (Episode.parent.torrenturl) {
             Episode.parent.finished = true;
-            botsan.saveSettings(botsan.anime_list);
+            botsan.saveAnime();
           }
         }
         callback();
@@ -272,38 +272,35 @@ function onDoneDownloading(file, Episode, callback) {
     });
     //numeric sort
 
-    var push = true;
-    for (i = 0; i < botsan.downloaded_list.length; i++) {
-      for (i = 0; i < botsan.downloaded_list.length; i++) {
-        var dwnld = botsan.downloaded_list[i];
+    var download = botsan.getDownload(downloadedObj.uploadsID, downloadedObj.episodeno);
 
-        if (dwnld.uploadsID == downloadedObj.uploadsID && dwnld.episodeno == downloadedObj.episodeno) {
-          push = false;
-          break;
-        }
-      }
-      if (push)
-        botsan.downloaded_list.push(downloadedObj);
+    if (download == null)
+      botsan.downloaded_list.push(downloadedObj);
 
-      botsan.writeDownloads(botsan.downloaded_list, function () {
-        botsan.saveSettings(botsan.anime_list);
-        botsan.updateData({
-          Episode: Episode,
-          Status: "Waiting to be pulled by Fay",
-          Progress: 0
-        });
-
-        setTimeout(function () {
-          botsan.clearData(Episode);
-        }, 3600000); //Clear after 1 hour
-
-        transcode_queue.push(Episode, 0, onTranscodeFinish);
-        callback(file);
+    botsan.writeDownloads(botsan.downloaded_list, function afterDownload() {
+      //IMPORTANT TODO: uncomment after done testing.
+      //botsan.saveAnime();
+      botsan.updateData({
+        Episode: Episode,
+        Status: "Waiting to be pulled by Fay",
+        Progress: 0
       });
-    }
+
+      setTimeout(function () {
+        botsan.clearData(Episode);
+      }, 3600000); //Clear after 1 hour
+
+      transcode_queue.push({episode: Episode, download: downloadedObj}, 0, onTranscodeFinish);
+      callback(file);
+    });
   });
 }
 
+
+/**
+ * Emitted when a transcode is finished from a Fay node
+ * TODO: Save it in
+ */
 function onTranscodeFinish() {
 
 }
@@ -316,11 +313,13 @@ var connected_nodes = [];
 //TODO: Then report them to Ray as soon as it can.
 /**
  * Sends a episode to Fay when there's a available spot.
- * @param {Object} episode
+ * @param {Object} obj
  * @param callback
  */
-function sendEpisodeToTranscode(episode, callback) {
+function transcodeEpisode(obj, callback) {
   //Will callback when receive socket.io finished event
+  const episode = obj.episode;
+  const download = obj.download;
   botsan.updateData({
     Episode: episode,
     Status: "Waiting to send to Transcoding nodes",
@@ -330,11 +329,20 @@ function sendEpisodeToTranscode(episode, callback) {
     return checkFreeRemoteNode();
   }, function done(result) {
     console.log("Free remote node!");
-    var freenode = getLowestQueuedNode();
+    const freenode = getLowestQueuedNode();
     //Copy the epside object, modify it before sending to Fay.
-    var data = Object.assign({}, episode);
-    data.parent = episode.parent.uploadsID;
+    const data = {};
+    data.episode = Object.assign({}, episode);
+    data.episode.parent = episode.parent.uploadsID;
+    data.download = download;
     freenode.socket.emit('episode', data);
+
+    botsan.updateData({
+      Episode: episode,
+      Status: `Sent to ${freenode.name}`,
+      Progress: 0
+    });
+
     freenode.socket.on('queuelength', function (data) {
       const obj = {};
       obj.queuelength = data;
@@ -343,7 +351,10 @@ function sendEpisodeToTranscode(episode, callback) {
     //Event to emit callback from finished episode handler from Fay
   });
 }
-
+/**
+ * Returns true when there's a available node to send the episode to.
+ * @returns {boolean}
+ */
 function checkFreeRemoteNode() {
   if (getLowestQueuedNode() != null) {
     return true;
@@ -380,10 +391,9 @@ function getLowestQueuedNode() {
  * connected Fays
  */
 function showConnections() {
-  var string = "";
-  for (var i = 0; i < connected_nodes.length; i++) {
-    string += connected_nodes[i].name + ", ";
-  }
+  const nodes_name = connected_nodes.map(function(elem){
+    return elem.name;
+  }).join();
   if (connected_nodes.length <= 0) {
     transcode_queue.pause();
   } else {
@@ -394,7 +404,7 @@ function showConnections() {
       connected_nodes.length;
   }
 
-  botsan.updateAppData({message: "Ray: Connected nodes: " + string, id: -1});
+  botsan.updateAppData({message: "Ray: Connected nodes: " + nodes_name, id: -1});
 }
 
 io.on('connection', function (socket) {
@@ -411,5 +421,13 @@ io.on('connection', function (socket) {
   socket.on('disconnect', function () {
     connected_nodes.splice(connected_nodes.indexOf(obj), 1);
     showConnections();
+  });
+
+  socket.on('getAnime', function (id) {
+    const getAnime = botsan.getAnimeById(id);
+    const anime = Object.assign({}, getAnime);
+    delete anime.finished_episodes;
+    delete anime.finished_encodes;
+    socket.emit('Anime', anime);
   });
 });

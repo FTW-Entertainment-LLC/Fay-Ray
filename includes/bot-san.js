@@ -476,7 +476,7 @@ Botsan.prototype.addNewSeries = function addNewSeries(series) {
     });
   }
 
-  this.saveSettings(this.anime_list);
+  this.saveAnime();
   return true;
 }
 
@@ -533,14 +533,14 @@ Botsan.prototype.loadSettings = function loadSettings() {
 }
 
 /**
+ * Saves the anime list.
  * @author Hani Mayahi <hani.mayahi94@gmail.com>
  * @since 1.0.0
- * @param {Object[]} anime_list     - Anime obj array list
  */
-Botsan.prototype.saveSettings = function saveSettings(anime_list) {
+Botsan.prototype.saveAnime = function saveAnime() {
   var outputFilename = this.path.normalize('./savefile.json');
 
-  this.fs.writeFile(outputFilename, JSON.stringify(anime_list, null, 4), function (err) {
+  this.fs.writeFile(outputFilename, JSON.stringify(this.anime_list, null, 4), function (err) {
     if (err) {
       logError(err);
       console.log(err);
