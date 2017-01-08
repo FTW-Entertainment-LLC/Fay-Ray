@@ -383,11 +383,7 @@ function sendToFTPQueue(encodedEp) {
   in_ftp_queue.push(encodedEp.Episode.title);
   ftp_queue.push(encodedEp, function () {
     in_ftp_queue.splice(in_ftp_queue.indexOf(encodedEp.Episode.title), 1);
-    if (socket.connected) {
-      sendDone(encodedEp.Episode);
-    } else {
-      finished_episodes.push(encodedEp.Episode);
-    }
+
   });
 }
 
@@ -470,6 +466,11 @@ function upload_file(uplObj, callback) {
     //TODO: This checks if the highest quality is uploaded, but I need to make
     // it check if all files are uploaded.
     if (uplObj.quality == uplObj.Episode.parent.quality) {
+      if (socket.connected) {
+        sendDone(uplObj.Episode);
+      } else {
+        finished_episodes.push(uplObj.Episode);
+      }
       botsan.sendNotification(
         `@everyone ${
           uplObj.Episode.parent.title

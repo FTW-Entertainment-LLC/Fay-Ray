@@ -463,7 +463,10 @@ io.on('connection', function (socket) {
         });
       }
       //remove from reserved.
-      obj.reserved.splice(episode, 1);
+      if(obj && obj.reserved){
+        const index = obj.reserved.findIndex(o => o.title === episode.title);
+        obj.reserved.splice(index, 1);
+      }
       botsan.updateData({
         Episode: episode,
         Status: `Done`,
