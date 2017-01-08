@@ -7,29 +7,41 @@ const array = require('locutus/php/array');
 const waitUntil = require('wait-until');
 const extend = require('util')._extend;
 botsan.startConsole();
-var socketiohttp = require('http').createServer().listen(8888, '0.0.0.0');
-var io = require('socket.io').listen(socketiohttp);
+const socketiohttp = require('http').createServer().listen(8888, '0.0.0.0');
+const io = require('socket.io').listen(socketiohttp);
 
-var DEBUG = false;
+const DEBUG = false;
 
-if (!botsan.fs.existsSync(botsan.path.normalize(botsan.config.paths.downloads))) {
+if (!botsan.fs.existsSync(botsan.path.normalize(
+      botsan.config.paths.downloads))
+) {
   botsan.fs.mkdirSync(botsan.path.normalize(botsan.config.paths.downloads));
 }
 
-botsan.nyaa_queue = botsan.async.queue(checkNyaa, botsan.config.settings.SIMULTANEOUS_NYAA_CHECKS);
-botsan.torrent_queue = botsan.async.queue(downloadEpisodes, botsan.config.settings.SIMULTANEOUS_DOWNLOADS);
-var transcode_queue = botsan.async.priorityQueue(transcodeEpisode, 1); //Concurrency is changed depending on amount of connected encoding nodes.
-var current_downloaded_articles = [];
+botsan.nyaa_queue = botsan.async.queue(
+  checkNyaa,
+  botsan.config.settings.SIMULTANEOUS_NYAA_CHECKS
+);
+botsan.torrent_queue = botsan.async.queue(
+  downloadEpisodes,
+  botsan.config.settings.SIMULTANEOUS_DOWNLOADS
+);
+const transcode_queue = botsan.async.priorityQueue(transcodeEpisode, 1);
+//Concurrency is changed depending on amount of connected encoding nodes.
+let in_transcode_queue = [];
+const current_downloaded_articles = [];
+
+const connected_nodes = [];
 
 
 //Starts the queue on start, and then once every hour.
 startQueue();
-var minutes = 30, the_interval = minutes * 60 * 1000;
+const minutes = 30, the_interval = minutes * 60 * 1000;
 setInterval(startQueue, the_interval);
 
 function checkNyaa(series, callback) {
-  var nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
-  var req = botsan.request(nyaaurl)
+  const nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
+  const req = botsan.request(nyaaurl)
     , feedparser = new botsan.FeedParser();
 
   req.on('error', function (error) {
@@ -37,7 +49,7 @@ function checkNyaa(series, callback) {
   });
 
   req.on('response', function (res) {
-    var stream = this;
+    const stream = this;
 
     if (res.statusCode != 200) return this.emit('error', new Error(`Bad status code: ${res.statusCode} (${nyaaurl})`));
 
@@ -48,27 +60,32 @@ function checkNyaa(series, callback) {
   feedparser.on('error', function (error) {
     botsan.logError(error);
   });
-  var found = 0;
+  let found = 0;
   feedparser.on('readable', function () {
     // This is where the action is!
-    var stream = this
+    let stream = this
       , meta = this.meta // **NOTE** the "meta" is always available in the context of the feedparser instance
       , article;
 
     while (article = stream.read()) {
 
-      var episode_number = getEpisodeByRegex(series, article.title);
+      const episode_number = getEpisodeByRegex(series, article.title);
 
       if (episode_number == null) {
         //No match, quit;
         return;
       }
 
-      if (series.finished_episodes.indexOf(parseInt(episode_number, 10 /*base 10*/)) != -1) {
+      if (series.finished_episodes.indexOf(
+        parseInt(episode_number, 10 /*base 10*/)) != -1)
+      {
         //Don't continue if this episode has already been uploaded.
         return;
       }
-      if (botsan.in_torrent_queue.indexOf(article.link) >= 0 || current_downloaded_articles.indexOf(article.link) >= 0) {
+      if (botsan.in_torrent_queue.indexOf(article.link) >= 0 ||
+        current_downloaded_articles.indexOf(article.link) >= 0 ||
+        in_transcode_queue.indexOf(article.title) >= 0)
+      {
         //Don't continue if the episode is in any of the above lists.
         //In torrent queue are the torrents waiting to be downloaded, while current_downloaded_articles are all torrents that has been downloaded since the process started
         return;
@@ -76,7 +93,7 @@ function checkNyaa(series, callback) {
 
       found++;
 
-      var e = new Episode(article.title, article.link, parseInt(episode_number), series); //Parse the episode number to a integer.
+      const e = new Episode(article.title, article.link, parseInt(episode_number), series); //Parse the episode number to a integer.
 
       botsan.updateData({Episode: e, Status: "In Torrent Queue", Progress: 0});
 
@@ -85,7 +102,7 @@ function checkNyaa(series, callback) {
         //Remove the episode from the in_queue when done.
         botsan.in_torrent_queue.splice(botsan.in_torrent_queue.indexOf(e.torrenturl), 1);
       });
-      var foundeps = found;
+      let foundeps = found;
       if (found > 0) {
         foundeps = botsan.colors.green(found);
       }
@@ -125,10 +142,16 @@ function startQueue() {
     } else {
       if (botsan.anime_list[i].finished && !diff)
         continue;
-      if (botsan.in_torrent_queue.indexOf(botsan.anime_list[i].torrenturl) >= 0) {
+      if (botsan.in_torrent_queue.indexOf(botsan.anime_list[i].torrenturl) >= 0)
+      {
         continue;
       }
-      const e = new Episode(null, botsan.anime_list[i].torrenturl, null, botsan.anime_list[i]); //Parse the episode number to a integer.
+      const e = new Episode(
+        null,
+        botsan.anime_list[i].torrenturl,
+        null,
+        botsan.anime_list[i]
+      ); //Parse the episode number to a integer.
       botsan.in_torrent_queue.push(e.torrenturl);
       botsan.torrent_queue.push(e, function () {
         //Remove the episode from the in_queue when done.
@@ -139,6 +162,10 @@ function startQueue() {
     //if(botsan.anime_list[i].finished_episodes.length>botsan.anime_list[i].finished_encodes.length){
     //The encodes list is smaller than the finished(downloads in Ray) list.
     //get difference
+
+
+
+
 
     for (const j in diff) {
       const download = botsan.getDownload(botsan.anime_list[i].uploadsID, parseInt(diff[j]));
@@ -209,17 +236,18 @@ function onTorrentAdd(torrent, episode, callback) {
       botsan.logError(err);
     }
     finished = true;
-    var last_episode = null;
-    for (var i = 0; i < torrent.files.length; i++) {
+    let last_episode = null;
+    for (i = 0; i < torrent.files.length; i++) {
       const buffer = readChunk.sync(botsan.path.normalize(`${botsan.config.paths.downloads}/${torrent.files[i].path}`), 0, 262);
       const filetype = fileType(buffer);
       if (filetype.mime.substring(0, 5) != "video") {
         continue;
       }
 
-      var thisEp = episode;
+      let thisEp = episode;
       if (episode.parent.torrenturl) {
-        //If it's a batch torrent identified by torrenturl in the anime object, then we only send the files that match the regex.
+        //If it's a batch torrent identified by torrenturl in the anime object,
+        // then we only send the files that match the regex.
         var ep_num = getEpisodeByRegex(episode.parent, torrent.files[i].name);
         if (!ep_num)
           continue;
@@ -227,6 +255,10 @@ function onTorrentAdd(torrent, episode, callback) {
           //Don't continue if this episode has already been uploaded.
           continue;
         }
+        if(in_transcode_queue.indexOf(torrent.files[i].path) >= 0) {
+          continue
+        }
+
         //null torrenturl because we don't want to ID the episodes by torrenturl which is done in some functions.
         //If there's no torrenturl, then it's identified by the episode title
         thisEp = new Episode(torrent.files[i].path, null, parseInt(ep_num), episode.parent);
@@ -291,7 +323,6 @@ function onDoneDownloading(file, episode, callback) {
         Status: "Waiting for an available transcoding node",
         Progress: 0
       });
-
       transcode_queue.push({
         episode: episode,
         download: downloadedObj
@@ -309,13 +340,6 @@ function onDoneDownloading(file, episode, callback) {
 function onTranscodeFinish() {
 
 }
-
-var connected_nodes = [];
-//TODO: Come up with logic to recover from a restart to remember which encoding
-// nodes are encoding
-//TODO: Fay should wait for Ray to come online if it's offline and it has
-// finished some transcodes.
-//TODO: Then report them to Ray as soon as it can.
 /**
  * Sends a episode to Fay when there's a available spot.
  * @param {Object} obj
@@ -341,6 +365,8 @@ function transcodeEpisode(obj, callback) {
     data.download = download;
     freenode.socket.emit('episode', data);
     freenode.reserved.push(episode);
+    in_transcode_queue.push(episode);
+
 
     botsan.updateData({
       Episode: episode,
@@ -463,9 +489,13 @@ io.on('connection', function (socket) {
         });
       }
       //remove from reserved.
-      if(obj && obj.reserved){
-        const index = obj.reserved.findIndex(o => o.title === episode.title);
-        obj.reserved.splice(index, 1);
+      if (obj && obj.reserved) {
+        const res_index = obj.reserved.findIndex(o => o.title === episode.title);
+        if(res_index>=0)
+          obj.reserved.splice(res_index, 1);
+        const in_index = in_transcode_queue.findIndex(o => o.title === episode.title);
+        if(in_index>=0)
+          in_transcode_queue.splice(in_index, 1);
       }
       botsan.updateData({
         Episode: episode,
