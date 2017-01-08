@@ -26,6 +26,7 @@ class Anime {
     this.uploadsID = uploadsID;
     this.quality = quality;
     this.finished_episodes = [];
+    this.finished_encodes = [];
     if (finished_episodes) {
       this.finished_episodes = finished_episodes;
     }
