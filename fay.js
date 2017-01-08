@@ -587,6 +587,11 @@ function sendDone(episode) {
 
 
 function Download(episode, download) {
+  botsan.updateData({
+    Episode: episode,
+    Status: "Received",
+    Progress: 0
+  });
   download_queue.push({
     download: download,
     episode: episode
