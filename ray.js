@@ -282,7 +282,7 @@ function onDoneDownloading(file, Episode, callback) {
       //botsan.saveAnime();
       botsan.updateData({
         Episode: Episode,
-        Status: "Waiting to be pulled by Fay",
+        Status: "Waiting for an available transcoding node",
         Progress: 0
       });
 
@@ -322,7 +322,7 @@ function transcodeEpisode(obj, callback) {
   const download = obj.download;
   botsan.updateData({
     Episode: episode,
-    Status: "Waiting to send to Transcoding nodes",
+    Status: "Waiting to send to Transcoding node",
     Progress: 0
   });
   waitUntil(1000, Infinity, function condition() {
@@ -366,20 +366,26 @@ function checkFreeRemoteNode() {
 
 /**
  * Gets the Fay that has the lowest amount of queued transcodes.
+ * Will return null when all nodes exceed download and transcode limit.
  * @returns {null|Object}
  */
 function getLowestQueuedNode() {
-  var freeEncNode = -1;
+  let freeEncNode = 0;
+  let found = false;
 
   for (var i = 0; i < connected_nodes.length; i++) {
     if (
-      connected_nodes[i].queuelength > freeEncNode &&
+      connected_nodes[i].queuelength <=
+      connected_nodes[freeEncNode].queuelength &&
       connected_nodes[i].queuelength <
-      (connected_nodes[i].maxdl + connected_nodes[i].maxtcode)) {
+      (connected_nodes[i].maxdl + connected_nodes[i].maxtcode)
+    ) {
       freeEncNode = i;
+      found = true;
     }
   }
-  if (freeEncNode >= 0) {
+  if (found) {
+    connected_nodes[freeEncNode].queuelength++;
     return connected_nodes[freeEncNode];
   } else {
     return null;

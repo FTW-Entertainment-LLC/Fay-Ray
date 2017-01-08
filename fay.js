@@ -520,7 +520,9 @@ socket.on('connect', function () {
   });
   //TODO: Emit this only when changed.
   setInterval(function () {
-    socket.emit('queuelength', encode_queue.length() + download_queue.length());
+    var enc_length = encode_queue.running()+encode_queue.length();
+    var dwl_length = download_queue.running()+download_queue.length();
+    socket.emit('queuelength', enc_length+dwl_length);
   }, 1000);
 });
 
