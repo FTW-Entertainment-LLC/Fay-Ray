@@ -2,7 +2,7 @@
 class Episode {
   /**
    * @author Hani Mayahi <hani.mayahi94@gmail.com>
-   * @since 1.1.0
+   * @since 1.0.0
    * @param {string} title       - The title of the nyaa listing
    * @param {number} episodeno   - Episode number of the nyaa listing
    * @param {string} torrenturl  - Torrent url of the nyaa listing

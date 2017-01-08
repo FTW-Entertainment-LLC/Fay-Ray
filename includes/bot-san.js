@@ -447,7 +447,7 @@ Botsan.prototype.logError = function logError(err) {
   this.fs.appendFile('./error.txt', this.getTime() + ":" + message + "\r\n\r\n", function (err) {
     if (err) throw err;
 
-    console.log('The "', err, '" was appended to file!');
+    console.log('The "', message, '" was appended to file!');
   });
 
   this.sendNotification(message, true);

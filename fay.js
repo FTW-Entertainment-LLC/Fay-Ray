@@ -6,6 +6,13 @@ const socket = require('socket.io-client')
 (`${botsan.config.connection.address}:8888`, {
   reconnectionDelay: botsan.config.connection.reconnection_delay
 });
+/**
+ * This array is used to save a local list of finished episodes in case of
+ * disconnect to Ray. On reconnect, it should send everything in this list as
+ * finished.
+ * @type {Array}
+ */
+const finished_episodes = [];
 botsan.startConsole();
 
 var DEBUG = false;
@@ -204,6 +211,7 @@ function sftpDownload(object, callback) {
         Status: "Downloading ",
         Progress: 0
       })
+      object.download.filename = object.download.filename.replace(/\\/g, "/");
       botsan.createFoldersForFile(
         `${botsan.config.paths.downloads}/${object.download.filename}`
       );
@@ -221,19 +229,32 @@ function sftpDownload(object, callback) {
           }
         },
         function (err) {
-          if (err)
+          if (err) {
+            if (err.code == 2) {
+              err = new Error(
+                `File ${
+                  botsan.config.paths.seedbox
+                  }/torrents/${
+                  object.download.filename
+                  } doesn't exist`)
+            }
             botsan.logError(err);
+          }
+
           botsan.updateData({
             Episode: object.episode,
             Status: "Download complete",
             Progress: 0
           });
-          var downloadedObj = new botsan.downloaded(
-            object.episode.parent.uploadsID,
-            object.download.filename,
-            object.episode.episodeno
-          );
-          botsan.downloaded_list.push(downloadedObj);
+          let downloadedObj = botsan.getDownload(object.episode.parent.uploadsID, object.episode.episodeno);
+          if (!downloadedObj) {
+            downloadedObj = new botsan.downloaded(
+              object.episode.parent.uploadsID,
+              object.download.filename,
+              object.episode.episodeno
+            );
+            botsan.downloaded_list.push(downloadedObj);
+          }
           conn.end();
           botsan.writeDownloads(botsan.downloaded_list, callback);
           onDoneDownloading(object.episode);
@@ -299,7 +320,7 @@ function startEncoding(Episode, callback) {
   encoding_eps.forEach(function (i) {
     try {
       if (botsan.fs.statSync(botsan.path.normalize(
-        `./${botsan.config.paths.outputfolder}/${i.filename}`
+          `./${botsan.config.paths.outputfolder}/${i.filename}`
         )).isFile()) {
         founds++;
         sendToFTPQueue(i);
@@ -362,7 +383,11 @@ function sendToFTPQueue(encodedEp) {
   in_ftp_queue.push(encodedEp.Episode.title);
   ftp_queue.push(encodedEp, function () {
     in_ftp_queue.splice(in_ftp_queue.indexOf(encodedEp.Episode.title), 1);
-    //console.log(`removed ${encodedEp.filename} from upload queue.`);
+    if (socket.connected) {
+      sendDone(encodedEp.Episode);
+    } else {
+      finished_episodes.push(encodedEp.Episode);
+    }
   });
 }
 
@@ -448,9 +473,9 @@ function upload_file(uplObj, callback) {
       botsan.sendNotification(
         `@everyone ${
           uplObj.Episode.parent.title
-        } #${
+          } #${
           uplObj.Episode.episodeno
-        } was uploaded to Zeus`);
+          } was uploaded to Zeus`);
       uplObj.Episode.parent.finished_episodes.push(uplObj.Episode.episodeno);
       uplObj.Episode.parent.finished_episodes.sort(function (a, b) {
         return a - b
@@ -507,22 +532,34 @@ socket.on('reconnect_attempt', function (num) {
 });
 
 socket.on('connect', function () {
+  const length = finished_episodes.length;
+  for (i = 0; i < length; i++) {
+    const ep = finished_episodes.shift();
+    sendDone(ep);
+  }
   botsan.updateAppData({message: "Connected to Ray", id: -2});
   let n = botsan.os.hostname();
   const period = n.indexOf(".");
-  if(period>=0)
+  if (period >= 0)
     n = n.substring(0, period); //Truncate string at first dot
-  socket.emit('identification', {
+  /**
+   *
+   * @type {{name, queuelength: *, maxdl: Number, maxtcode: Number, reserved: Array}}
+   * @propery Episode[] reserved - The episodes this node is currently working on.
+   */
+  const idObj = {
     name: n,
     queuelength: encode_queue.length() + download_queue.length(),
-    maxdl: botsan.config.settings.SIMULTANEOUS_SCP,
-    maxtcode: botsan.config.settings.SIMULTANEOUS_ENCODES
-  });
+    maxdl: parseInt(botsan.config.settings.SIMULTANEOUS_SCP),
+    maxtcode: parseInt(botsan.config.settings.SIMULTANEOUS_ENCODES),
+    reserved: []
+  }
+  socket.emit('identification', idObj);
   //TODO: Emit this only when changed.
   setInterval(function () {
-    var enc_length = encode_queue.running()+encode_queue.length();
-    var dwl_length = download_queue.running()+download_queue.length();
-    socket.emit('queuelength', enc_length+dwl_length);
+    var enc_length = encode_queue.running() + encode_queue.length();
+    var dwl_length = download_queue.running() + download_queue.length();
+    socket.emit('queuelength', enc_length + dwl_length);
   }, 1000);
 });
 
@@ -540,13 +577,20 @@ socket.on('episode', function onReceiveEncode(data) {
     episode.parent = parent;
     Download(episode, download);
   }
-  //TODO: Send the download object in data.
 });
 
+function sendDone(episode) {
+  const ep = Object.assign({}, episode);
+  ep.parent = ep.parent.uploadsID;
+  socket.emit('done', ep);
+}
 
 
-function Download(episode, download){
-  download_queue.push({download: download, episode: episode}, episode.episodeno, function () {
+function Download(episode, download) {
+  download_queue.push({
+    download: download,
+    episode: episode
+  }, episode.episodeno, function () {
     //Remove it from in_download_queue when done.
     in_download_queue.splice(in_download_queue.indexOf(episode.title), 1);
   });
