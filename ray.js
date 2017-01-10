@@ -36,7 +36,7 @@ const connected_nodes = [];
 
 //Starts the queue on start, and then once every hour.
 startQueue();
-const MINUTES = 0.1;
+const MINUTES = 30;
 const THE_INTERVAL = MINUTES * 60 * 1000;
 setInterval(startQueue, THE_INTERVAL);
 
