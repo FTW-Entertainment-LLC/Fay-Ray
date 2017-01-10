@@ -539,10 +539,7 @@ socket.on('connect', function () {
     sendDone(ep);
   }
   botsan.updateAppData({message: "Connected to Ray", id: -2});
-  let n = botsan.os.hostname();
-  const period = n.indexOf(".");
-  if (period >= 0)
-    n = n.substring(0, period); //Truncate string at first dot
+  const n = botsan.getShortHostname();
   /**
    *
    * @type {{name, queuelength: *, maxdl: Number, maxtcode: Number, reserved: Array}}

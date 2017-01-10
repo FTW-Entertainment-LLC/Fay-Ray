@@ -28,7 +28,7 @@ botsan.torrent_queue = botsan.async.queue(
 );
 const transcode_queue = botsan.async.priorityQueue(transcodeEpisode, 1);
 //Concurrency is changed depending on amount of connected encoding nodes.
-let in_transcode_queue = [];
+let inTranscodeQueue = [];
 const current_downloaded_articles = [];
 
 const connected_nodes = [];
@@ -36,8 +36,9 @@ const connected_nodes = [];
 
 //Starts the queue on start, and then once every hour.
 startQueue();
-const minutes = 30, the_interval = minutes * 60 * 1000;
-setInterval(startQueue, the_interval);
+const MINUTES = 0.1;
+const THE_INTERVAL = MINUTES * 60 * 1000;
+setInterval(startQueue, THE_INTERVAL);
 
 function checkNyaa(series, callback) {
   const nyaaurl = nyaaUrl(series.nyaasearch, series.nyaauser);
@@ -84,7 +85,7 @@ function checkNyaa(series, callback) {
       }
       if (botsan.in_torrent_queue.indexOf(article.link) >= 0 ||
         current_downloaded_articles.indexOf(article.link) >= 0 ||
-        in_transcode_queue.indexOf(article.title) >= 0)
+        inTranscodeQueue.indexOf(article.title) >= 0)
       {
         //Don't continue if the episode is in any of the above lists.
         //In torrent queue are the torrents waiting to be downloaded, while current_downloaded_articles are all torrents that has been downloaded since the process started
@@ -163,15 +164,17 @@ function startQueue() {
     //The encodes list is smaller than the finished(downloads in Ray) list.
     //get difference
 
-
-
-
-
     for (const j in diff) {
       const download = botsan.getDownload(botsan.anime_list[i].uploadsID, parseInt(diff[j]));
       if (!download)
         continue;
+      const inQueue = inTranscodeQueue.findIndex(o => o.title === download.filename);
+      if(inQueue>=0)
+        continue;
+
       const episode = new Episode(download.filename, null, parseInt(diff[j]), botsan.anime_list[i]);
+
+      inTranscodeQueue.push(episode);
       botsan.updateData({
         Episode: episode,
         Status: "In send queue",
@@ -255,9 +258,6 @@ function onTorrentAdd(torrent, episode, callback) {
           //Don't continue if this episode has already been uploaded.
           continue;
         }
-        if(in_transcode_queue.indexOf(torrent.files[i].path) >= 0) {
-          continue
-        }
 
         //null torrenturl because we don't want to ID the episodes by torrenturl which is done in some functions.
         //If there's no torrenturl, then it's identified by the episode title
@@ -290,6 +290,12 @@ function onTorrentAdd(torrent, episode, callback) {
 
 }
 
+/**
+ *
+ * @param file
+ * @param episode
+ * @param callback
+ */
 function onDoneDownloading(file, episode, callback) {
   botsan.updateData({
     Episode: episode,
@@ -320,7 +326,7 @@ function onDoneDownloading(file, episode, callback) {
       botsan.saveAnime();
       botsan.updateData({
         Episode: episode,
-        Status: "Waiting for an available transcoding node",
+        Status: "In send queue",
         Progress: 0
       });
       transcode_queue.push({
@@ -351,7 +357,7 @@ function transcodeEpisode(obj, callback) {
   const download = obj.download;
   botsan.updateData({
     Episode: episode,
-    Status: "Waiting to send to Transcoding node",
+    Status: "Waiting for a free Transcoding node",
     Progress: 0
   });
   waitUntil(1000, Infinity, function condition() {
@@ -365,8 +371,6 @@ function transcodeEpisode(obj, callback) {
     data.download = download;
     freenode.socket.emit('episode', data);
     freenode.reserved.push(episode);
-    in_transcode_queue.push(episode);
-
 
     botsan.updateData({
       Episode: episode,
@@ -493,9 +497,9 @@ io.on('connection', function (socket) {
         const res_index = obj.reserved.findIndex(o => o.title === episode.title);
         if(res_index>=0)
           obj.reserved.splice(res_index, 1);
-        const in_index = in_transcode_queue.findIndex(o => o.title === episode.title);
+        const in_index = inTranscodeQueue.findIndex(o => o.title === episode.title);
         if(in_index>=0)
-          in_transcode_queue.splice(in_index, 1);
+          inTranscodeQueue.splice(in_index, 1);
       }
       botsan.updateData({
         Episode: episode,

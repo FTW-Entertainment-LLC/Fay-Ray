@@ -651,15 +651,22 @@ Botsan.prototype.createFilename = function createFilename(prefix, episode, resol
  * @returns {boolean}       - True on success, false on fail
  */
 Botsan.prototype.sendNotification = function sendNotification(message, error) {
-  if (this.config === undefined || !this.config.settings.NOTIFICATIONS) {
+  if (this.config === undefined) {
     return false;
   }
-  var channel = "245289486295105546";
+  if(!this.config.settings.NOTIFICATIONS){
+    this.log(message);
+    return false;
+  }
+
+  message = `From ${this.getShortHostname()}: ${message}`;
+
+  let channel = "245289486295105546";
   if (error) {
     channel = "245572944598794240";
   }
-  var discord = this.discord;
-  var operation = this.retry.operation({retries: 2, minTimeout: 3000});
+  const discord = this.discord;
+  const operation = this.retry.operation({retries: 2, minTimeout: 3000});
   operation.attempt(function (currentAttempt) {
     discord.sendMessage({
       to: channel,
@@ -824,6 +831,15 @@ function deleteFile(fileObj, callback) {
 
   }
 
+}
+
+
+Botsan.prototype.getShortHostname =  function getShortHostname(){
+  let name = this.os.hostname();
+  const period = name.indexOf(".");
+  if (period >= 0)
+    name = name.substring(0, period); //Truncate string at first dot
+  return name;
 }
 
 module.exports = Botsan;
