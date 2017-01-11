@@ -3,9 +3,11 @@
  */
 var assert = require('assert');
 var bsan = require('../includes/bot-san.js');
+var Anime = require('../models/Anime.js');
+var Episode = require('../models/Episode.js');
 var botsan = new bsan();
-var anime = new botsan.anime("Love Live! Sunshine!!", "lovelivesunshine", "\\[FFF\\] Love Live! Sunshine!! - (\\d{2})(?:v\\d)?.*.mkv", "Love+Live%21+Sunshine%21%21", 73859, 2570, 720, [2,3,4]);
-var ep = new botsan.Episode("Title", "https://www.nyaa.se/?page=download&tid=867606", 1,  anime);
+var anime = new Anime("Love Live! Sunshine!!", "lovelivesunshine", "\\[FFF\\] Love Live! Sunshine!! - (\\d{2})(?:v\\d)?.*.mkv", "Love+Live%21+Sunshine%21%21", 73859, 2570, 720, [2,3,4]);
+var ep = new Episode("Title", "https://www.nyaa.se/?page=download&tid=867606", 1,  anime);
 describe('Module Bot-san', function() {
 
     describe('Episode()', function() {
