@@ -3,7 +3,7 @@
  */
 //For now, the front end gui will be here. It will be very simplistic and only used as a placeholder, since it will be replaced by the uploads board.
 //This will later be replaced by all control functionality for Fay and Ray
-require('../models/Anime.js');
+const Anime = require('../models/Anime.js');
 function Control(botsan) {
   this.botsan = botsan
   var http = require('http');
