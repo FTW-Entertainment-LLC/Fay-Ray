@@ -453,6 +453,8 @@ io.on('connection', function (socket) {
     obj.queuelength = data;
   });
   socket.on('disconnect', function () {
+    if(!obj)
+      return;
     connected_nodes.splice(connected_nodes.indexOf(obj), 1);
     const length = obj.reserved.length;
     for (i = 0; i < length; i++) {
