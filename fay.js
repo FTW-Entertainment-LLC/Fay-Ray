@@ -59,8 +59,17 @@ var scpDefaults = {
  * @param callback
  */
 function sftpDownload(object, callback) {
-  var Client = require('ssh2').Client;
-  var conn = new Client();
+  object.download.filename = object.download.filename.replace(/\\/g, "/");
+  const localFilename = `${botsan.config.paths.downloads}/${object.download.filename}`;
+
+  //TODO: Check if the filesize matches the remote one, if it does then i can
+  //remove this development check
+  if(botsan.config.settings.DEVELOPMENT && botsan.fs.existsSync(localFilename)){
+    onDoneDownloading(object, callback);
+    return;
+  }
+  const Client = require('ssh2').Client;
+  const conn = new Client();
   conn.on('ready', function () {
     console.log('Client :: ready');
     conn.sftp(function (err, sftp) {
@@ -71,14 +80,13 @@ function sftpDownload(object, callback) {
         Status: "Downloading ",
         Progress: 0
       })
-      object.download.filename = object.download.filename.replace(/\\/g, "/");
       botsan.createFoldersForFile(
         `${botsan.config.paths.downloads}/${object.download.filename}`
       );
       //TODO: Get the download path from seedbox config
       sftp.fastGet(
         `${botsan.config.paths.seedbox}/torrents/${object.download.filename}`,
-        `${botsan.config.paths.downloads}/${object.download.filename}`,
+        localFilename,
         {
           step: function (total_transferred, chunk, total) {
             botsan.updateData({
@@ -87,8 +95,7 @@ function sftpDownload(object, callback) {
               Progress: Math.floor((total_transferred / total * 100) * 10) / 10
             })
           }
-        },
-        function (err) {
+        }, function (err){
           if (err) {
             if (err.code == 2) {
               err = new Error(
@@ -100,31 +107,34 @@ function sftpDownload(object, callback) {
             }
             botsan.logError(err);
           }
-
-          botsan.updateData({
-            Episode: object.episode,
-            Status: "Download complete",
-            Progress: 0
-          });
-          let downloadedObj = botsan.getDownload(object.episode.parent.uploadsID, object.episode.episodeno);
-          if (!downloadedObj) {
-            downloadedObj = new botsan.downloaded(
-              object.episode.parent.uploadsID,
-              object.download.filename,
-              object.episode.episodeno
-            );
-            botsan.downloaded_list.push(downloadedObj);
-          }
           conn.end();
-          botsan.writeDownloads(botsan.downloaded_list, callback);
-          onDoneDownloading(object.episode);
+          onDoneDownloading(object, callback)
         });
     });
   }).connect(scpDefaults);
 
 }
 
-function onDoneDownloading(Episode) {
+function onDoneDownloading(object, callback){
+    botsan.updateData({
+      Episode: object.episode,
+      Status: "Download complete",
+      Progress: 0
+    });
+    let downloadedObj = botsan.getDownload(object.episode.parent.uploadsID, object.episode.episodeno);
+    if (!downloadedObj) {
+      downloadedObj = new botsan.downloaded(
+        object.episode.parent.uploadsID,
+        object.download.filename,
+        object.episode.episodeno
+      );
+      botsan.downloaded_list.push(downloadedObj);
+    }
+    botsan.writeDownloads(botsan.downloaded_list, callback);
+    sendToTranscode(object.episode);
+}
+
+function sendToTranscode(Episode) {
   botsan.updateData({
     Episode: Episode,
     Status: "Download Finished",

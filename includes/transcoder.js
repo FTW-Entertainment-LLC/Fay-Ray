@@ -244,6 +244,7 @@ Transcoder.prototype.transcode = function transcode(file_in,
             .replace(/\[/g, "\'\[\'")
             .replace(/\]/g, "\'\]\'")
             .replace(/,/g, "\\,")
+            .replace(/;/g, "\\;")
           }`
       });
     }
